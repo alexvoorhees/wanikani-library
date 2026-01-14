@@ -158,11 +158,19 @@ def export_to_json(known_vocab, learning_vocab, known_kanji, learning_kanji):
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
+    # Save simplified word list (just the characters)
+    simple_vocab_path = 'output/known_words_simple.txt'
+    known_words = [vocab['characters'] for vocab in known_vocab]
+    with open(simple_vocab_path, 'w', encoding='utf-8') as f:
+        f.write(', '.join(known_words))
+
     print(f'\nExported to {output_path}')
     print(f'  Known vocabulary: {len(known_vocab)}')
     print(f'  Learning vocabulary: {len(learning_vocab)}')
     print(f'  Known kanji: {len(known_kanji)}')
     print(f'  Learning kanji: {len(learning_kanji)}')
+    print(f'\nSimplified word list: {simple_vocab_path}')
+    print(f'  {len(known_words)} words as comma-separated text')
 
 
 def main():
