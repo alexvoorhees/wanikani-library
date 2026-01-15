@@ -10,7 +10,7 @@ const Card = React.forwardRef<
     className={cn(
       "rounded-lg",
       variant === "default" && "bg-white shadow-lg p-6",
-      variant === "setup" && "bg-white/90 shadow-md p-6 border border-gray-100",
+      variant === "setup" && "bg-white shadow-md p-6 border-2 border-gray-200",
       variant === "reader" && "bg-white shadow-lg p-6 border border-gray-200",
       className
     )}
