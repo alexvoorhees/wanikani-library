@@ -1,9 +1,0 @@
-{
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": "nextjs",
-  "env": {
-    "VENICE_API_KEY": "@venice-api-key"
-  }
-}
