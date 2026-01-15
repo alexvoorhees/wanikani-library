@@ -24,6 +24,7 @@ export default function Home() {
   const [unknownKanji, setUnknownKanji] = useState<string[]>([]);
   const [kanjiInfo, setKanjiInfo] = useState<KanjiInfo[]>([]);
   const [isLoadingKanji, setIsLoadingKanji] = useState(false);
+  const [error, setError] = useState<string>('');
 
   // Load vocab list from localStorage on mount
   useEffect(() => {
@@ -52,11 +53,12 @@ export default function Home() {
   // Generate content
   const handleGenerate = async () => {
     if (!topic || vocabList.length === 0) {
-      alert('Please upload a vocabulary file and enter a topic!');
+      setError('Please upload a vocabulary file and enter a topic!');
       return;
     }
 
     setIsLoading(true);
+    setError(''); // Clear previous errors
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -65,12 +67,19 @@ export default function Home() {
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        // Handle API errors
+        setError(data.error || 'Failed to generate content. Please try again.');
+        return;
+      }
+
       setGeneratedContent(data.japanese || '');
       setEnglishTranslation(data.english || '');
       setSources(data.sources || []);
     } catch (error) {
       console.error('Error generating content:', error);
-      alert('Failed to generate content. Please try again.');
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -250,6 +259,41 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* Error Display */}
+        {error && !isLoading && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-red-900 mb-2">Error</h3>
+                <p className="text-red-800">{error}</p>
+                {error.includes('Rate limit') && (
+                  <div className="mt-4 p-4 bg-red-100 rounded border border-red-300">
+                    <p className="text-sm text-red-900 font-medium mb-2">Rate Limit Tips:</p>
+                    <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
+                      <li>Wait 2-5 minutes before trying again</li>
+                      <li>Venice AI has usage quotas - check your account limits</li>
+                      <li>Web search requests are more expensive than regular requests</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setError('')}
+                className="flex-shrink-0 text-red-600 hover:text-red-800"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Loading Indicator */}
         {isLoading && (

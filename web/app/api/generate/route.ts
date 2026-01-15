@@ -77,9 +77,34 @@ Make sure the English translation accurately reflects what you wrote in Japanese
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Venice API error:', errorText);
+      console.error('Venice API error:', response.status, errorText);
+
+      // Handle specific error cases
+      if (response.status === 429) {
+        return NextResponse.json(
+          {
+            error: 'Rate limit exceeded. Venice AI has too many requests. Please wait a few minutes and try again.',
+            errorType: 'RATE_LIMIT'
+          },
+          { status: 429 }
+        );
+      }
+
+      if (response.status === 401) {
+        return NextResponse.json(
+          {
+            error: 'Invalid or missing API key. Please check your Venice API key configuration.',
+            errorType: 'AUTH_ERROR'
+          },
+          { status: 401 }
+        );
+      }
+
       return NextResponse.json(
-        { error: 'Failed to generate content from Venice API' },
+        {
+          error: `Venice API error (${response.status}): ${errorText || 'Unknown error'}`,
+          errorType: 'API_ERROR'
+        },
         { status: response.status }
       );
     }
