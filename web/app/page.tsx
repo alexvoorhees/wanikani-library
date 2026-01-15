@@ -1,6 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { ReaderSurface } from '@/components/ui/reader-surface';
+import { Spinner } from '@/components/ui/spinner';
+import { AlertCircle, X } from 'lucide-react';
 
 interface Source {
   title?: string;
@@ -211,98 +218,89 @@ export default function Home() {
         </header>
 
         {/* Vocabulary Upload Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-            1. Upload Your Vocabulary
-          </h2>
-          <div className="flex items-center gap-4">
-            <input
-              type="file"
-              accept=".txt"
-              onChange={handleFileUpload}
-              className="block w-full text-sm text-gray-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-indigo-50 file:text-indigo-700
-                hover:file:bg-indigo-100"
-            />
-            {vocabList.length > 0 && (
-              <span className="text-green-600 font-medium whitespace-nowrap">
-                ✓ {vocabList.length} words loaded
-              </span>
-            )}
-          </div>
-        </div>
+        <Card variant="setup" className="mb-6">
+          <CardTitle className="mb-4">1. Upload Your Vocabulary</CardTitle>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Input
+                type="file"
+                accept=".txt"
+                onChange={handleFileUpload}
+              />
+              {vocabList.length > 0 && (
+                <span className="text-green-600 font-medium whitespace-nowrap">
+                  ✓ {vocabList.length} words loaded
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Topic Input Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-            2. What would you like to read about?
-          </h2>
-          <div className="flex gap-4">
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g., technology news, Japanese culture, sports..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
-            />
-            <button
-              onClick={handleGenerate}
-              disabled={isLoading || vocabList.length === 0}
-              className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-semibold
-                hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed
-                transition-colors"
-            >
-              {isLoading ? 'Generating...' : 'Generate'}
-            </button>
-          </div>
-        </div>
+        <Card variant="setup" className="mb-6">
+          <CardTitle className="mb-4">2. What would you like to read about?</CardTitle>
+          <CardContent>
+            <div className="flex gap-4">
+              <Input
+                type="text"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g., technology news, Japanese culture, sports..."
+                className="flex-1"
+              />
+              <Button
+                onClick={handleGenerate}
+                disabled={isLoading || vocabList.length === 0}
+              >
+                {isLoading ? 'Generating...' : 'Generate'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Error Display */}
         {error && !isLoading && (
-          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 mb-6">
+          <Alert variant="destructive" className="mb-6">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <AlertCircle className="h-6 w-6 text-red-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-red-900 mb-2">Error</h3>
-                <p className="text-red-800">{error}</p>
-                {error.includes('Rate limit') && (
-                  <div className="mt-4 p-4 bg-red-100 rounded border border-red-300">
-                    <p className="text-sm text-red-900 font-medium mb-2">Rate Limit Tips:</p>
-                    <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
-                      <li>Wait 2-5 minutes before trying again</li>
-                      <li>Venice AI has usage quotas - check your account limits</li>
-                      <li>Web search requests are more expensive than regular requests</li>
-                    </ul>
-                  </div>
-                )}
+                <AlertTitle className="text-red-900">Error</AlertTitle>
+                <AlertDescription className="text-red-800">
+                  <p>{error}</p>
+                  {error.includes('Rate limit') && (
+                    <div className="mt-4 p-4 bg-red-100 rounded border border-red-300">
+                      <p className="text-sm text-red-900 font-medium mb-2">Rate Limit Tips:</p>
+                      <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
+                        <li>Wait 2-5 minutes before trying again</li>
+                        <li>Venice AI has usage quotas - check your account limits</li>
+                        <li>Web search requests are more expensive than regular requests</li>
+                      </ul>
+                    </div>
+                  )}
+                </AlertDescription>
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setError('')}
                 className="flex-shrink-0 text-red-600 hover:text-red-800"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+                <X className="h-5 w-5" />
+              </Button>
             </div>
-          </div>
+          </Alert>
         )}
 
         {/* Loading Indicator */}
         {isLoading && (
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+          <Card className="p-8 mb-6">
             <div className="flex flex-col items-center justify-center gap-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+              <Spinner size="lg" />
               <p className="text-gray-600 font-medium">Generating your Japanese content...</p>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Generated Content Section */}
@@ -310,36 +308,34 @@ export default function Home() {
           <div className="space-y-6">
             {/* Sources Section */}
             {sources.length > 0 && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                  📰 Source Articles
-                </h2>
-                <div className="space-y-3">
-                  {sources.map((source, idx) => (
-                    <div key={idx} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-700 font-medium hover:underline"
-                      >
-                        {source.title || `Source ${idx + 1}`}
-                      </a>
-                      {source.snippet && (
-                        <p className="text-sm text-gray-600 mt-1">{source.snippet}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <Card>
+                <CardTitle className="mb-4">Source Articles</CardTitle>
+                <CardContent>
+                  <div className="space-y-3">
+                    {sources.map((source, idx) => (
+                      <div key={idx} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-700 font-medium hover:underline"
+                        >
+                          {source.title || `Source ${idx + 1}`}
+                        </a>
+                        {source.snippet && (
+                          <p className="text-sm text-gray-600 mt-1">{source.snippet}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Japanese Content */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
+            <Card variant="reader">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-semibold text-gray-800">
-                  🇯🇵 Japanese Content
-                </h2>
+                <CardTitle>Japanese Content</CardTitle>
                 <div className="flex gap-4 text-sm text-gray-600">
                   <span className="flex items-center gap-2">
                     <span className="font-bold">Bold</span>
@@ -347,83 +343,82 @@ export default function Home() {
                   </span>
                 </div>
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
+              <ReaderSurface variant="japanese" className="p-4">
                 {highlightText(generatedContent)}
-              </div>
-            </div>
+              </ReaderSurface>
+            </Card>
 
             {/* English Translation */}
             {englishTranslation && (
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                  🇺🇸 English Translation
-                </h2>
-                <div className="p-4 bg-gray-50 rounded-lg">
+              <Card variant="reader">
+                <CardTitle className="mb-4">English Translation</CardTitle>
+                <ReaderSurface variant="english" className="p-4">
                   <p className="text-gray-900 leading-relaxed text-lg whitespace-pre-wrap">
                     {englishTranslation}
                   </p>
-                </div>
-              </div>
+                </ReaderSurface>
+              </Card>
             )}
           </div>
         )}
 
         {/* New Kanji Vocabulary Panel */}
         {generatedContent && !isLoading && unknownKanji.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+          <Card className="mt-6">
+            <CardTitle className="mb-4">
               New Kanji in This Text ({unknownKanji.length})
-            </h2>
-
-            {isLoadingKanji ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mr-3"></div>
-                <p className="text-gray-600">Loading kanji information...</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {kanjiInfo.map((info, index) => (
-                  <div
-                    key={index}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="text-4xl font-bold text-indigo-900 flex-shrink-0">
-                        {info.character}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="mb-2">
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                            Reading
-                          </p>
-                          <p className="text-sm text-gray-700 font-medium">
-                            {info.readings.slice(0, 2).join(', ')}
-                          </p>
+            </CardTitle>
+            <CardContent>
+              {isLoadingKanji ? (
+                <div className="flex items-center justify-center py-8">
+                  <Spinner className="mr-3" />
+                  <p className="text-gray-600">Loading kanji information...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {kanjiInfo.map((info, index) => (
+                    <div
+                      key={index}
+                      className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="text-4xl font-bold text-indigo-900 flex-shrink-0">
+                          {info.character}
                         </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                            Meaning
-                          </p>
-                          <p className="text-sm text-gray-700">
-                            {info.meanings.slice(0, 2).join(', ')}
-                          </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="mb-2">
+                            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                              Reading
+                            </p>
+                            <p className="text-sm text-gray-700 font-medium">
+                              {info.readings.slice(0, 2).join(', ')}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                              Meaning
+                            </p>
+                            <p className="text-sm text-gray-700">
+                              {info.meanings.slice(0, 2).join(', ')}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Instructions */}
         {vocabList.length === 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+          <Alert variant="info" className="text-center">
             <p className="text-blue-800">
-              📝 Start by uploading your Japanese vocabulary list (comma-separated .txt file)
+              Start by uploading your Japanese vocabulary list (comma-separated .txt file)
             </p>
-          </div>
+          </Alert>
         )}
       </div>
     </div>
