@@ -309,7 +309,7 @@ export default function Home() {
             {/* Sources Section */}
             {sources.length > 0 && (
               <Card>
-                <CardTitle className="mb-4">📰 Source Articles</CardTitle>
+                <CardTitle className="mb-4">Source Articles</CardTitle>
                 <CardContent>
                   <div className="space-y-3">
                     {sources.map((source, idx) => (
@@ -335,7 +335,7 @@ export default function Home() {
             {/* Japanese Content */}
             <Card variant="reader">
               <div className="flex justify-between items-center mb-4">
-                <CardTitle>🇯🇵 Japanese Content</CardTitle>
+                <CardTitle>Japanese Content</CardTitle>
                 <div className="flex gap-4 text-sm text-gray-600">
                   <span className="flex items-center gap-2">
                     <span className="font-bold">Bold</span>
@@ -351,7 +351,7 @@ export default function Home() {
             {/* English Translation */}
             {englishTranslation && (
               <Card variant="reader">
-                <CardTitle className="mb-4">🇺🇸 English Translation</CardTitle>
+                <CardTitle className="mb-4">English Translation</CardTitle>
                 <ReaderSurface variant="english" className="p-4">
                   <p className="text-gray-900 leading-relaxed text-lg whitespace-pre-wrap">
                     {englishTranslation}
@@ -416,7 +416,7 @@ export default function Home() {
         {vocabList.length === 0 && (
           <Alert variant="info" className="text-center">
             <p className="text-blue-800">
-              📝 Start by uploading your Japanese vocabulary list (comma-separated .txt file)
+              Start by uploading your Japanese vocabulary list (comma-separated .txt file)
             </p>
           </Alert>
         )}

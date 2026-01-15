@@ -12,8 +12,8 @@ const ReaderSurface = React.forwardRef<HTMLDivElement, ReaderSurfaceProps>(
       <div
         ref={ref}
         className={cn(
-          "p-6 rounded-lg shadow-inner",
-          variant === "japanese" && "bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-primary/20",
+          "p-6 rounded-lg",
+          variant === "japanese" && "bg-blue-50/50 border border-blue-200/50",
           variant === "english" && "bg-gray-50 border border-gray-200",
           className
         )}
