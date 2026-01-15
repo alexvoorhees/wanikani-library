@@ -57,52 +57,64 @@ export default function Home() {
     }
   };
 
-  // Highlight vocabulary in generated content
+  // Highlight unknown kanji in generated content
   const highlightText = (text: string) => {
     if (!text) return null;
 
-    // Split text into words/characters for highlighting
-    // This is a simple implementation - can be improved
+    // Track kanji we've already seen in this text (for first-appearance-only bolding)
+    const seenKanji = new Set<string>();
     const segments: React.ReactElement[] = [];
-    let currentIndex = 0;
 
-    // Check each character/word
+    // Regex to detect kanji characters (CJK Unified Ideographs)
+    const kanjiRegex = /[\u4E00-\u9FAF]/;
+
+    // Build current segment of non-bold text
+    let currentSegment = '';
+    let segmentKey = 0;
+
     for (let i = 0; i < text.length; i++) {
-      let matched = false;
+      const char = text[i];
 
-      // Check if any vocab word starts at this position
-      for (const word of vocabList) {
-        if (text.substring(i, i + word.length) === word) {
-          // Add any non-matched text before this
-          if (i > currentIndex) {
+      // Check if this character is a kanji
+      if (kanjiRegex.test(char)) {
+        // Check if this kanji is in our known vocabulary
+        const isKnown = vocabList.some(word => word.includes(char));
+
+        // Bold this kanji only if it's unknown AND we haven't seen it yet
+        const shouldBold = !isKnown && !seenKanji.has(char);
+
+        if (shouldBold) {
+          // Push any accumulated non-bold text first
+          if (currentSegment) {
             segments.push(
-              <span key={`unknown-${currentIndex}`} className="text-red-600 font-semibold">
-                {text.substring(currentIndex, i)}
-              </span>
+              <span key={`normal-${segmentKey++}`}>{currentSegment}</span>
             );
+            currentSegment = '';
           }
 
-          // Add matched word
+          // Add the bolded kanji
           segments.push(
-            <span key={`known-${i}`} className="text-green-600">
-              {word}
+            <span key={`bold-${segmentKey++}`} className="font-bold">
+              {char}
             </span>
           );
 
-          currentIndex = i + word.length;
-          i = currentIndex - 1; // -1 because loop will increment
-          matched = true;
-          break;
+          // Mark this kanji as seen
+          seenKanji.add(char);
+        } else {
+          // Known kanji or already seen - just add to current segment
+          currentSegment += char;
         }
+      } else {
+        // Not a kanji - add to current segment
+        currentSegment += char;
       }
     }
 
-    // Add remaining text
-    if (currentIndex < text.length) {
+    // Add any remaining text
+    if (currentSegment) {
       segments.push(
-        <span key={`unknown-${currentIndex}`} className="text-red-600 font-semibold">
-          {text.substring(currentIndex)}
-        </span>
+        <span key={`normal-${segmentKey++}`}>{currentSegment}</span>
       );
     }
 
@@ -157,7 +169,7 @@ export default function Home() {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g., technology news, Japanese culture, sports..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
             />
             <button
               onClick={handleGenerate}
@@ -178,14 +190,10 @@ export default function Home() {
               <h2 className="text-2xl font-semibold text-gray-800">
                 Your Content
               </h2>
-              <div className="flex gap-4 text-sm">
+              <div className="flex gap-4 text-sm text-gray-600">
                 <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 bg-green-600 rounded"></span>
-                  Known words
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 bg-red-600 rounded"></span>
-                  New words
+                  <span className="font-bold">Bold</span>
+                  = Unknown kanji (first appearance)
                 </span>
               </div>
             </div>
