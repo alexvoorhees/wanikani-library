@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
 
 CRITICAL CONSTRAINTS:
 1. Find recent English news/articles about: ${topic}
-2. Write a 1-3 paragraph summary in Japanese
-3. Use ONLY vocabulary from the user's known word list (they know ${totalVocabCount} words total)
+2. Write a 1-3 paragraph summary in Japanese using ONLY vocabulary from the user's known word list
+3. The user knows ${totalVocabCount} words total
 4. Aim for ~90% of words to be from their vocabulary list
 5. Keep the content interesting and informative
 6. Use simple grammar structures appropriate for their level
@@ -42,7 +42,13 @@ The user knows ${totalVocabCount} total words including these patterns:
 - Numbers and counters (〜円, 〜人, etc.)
 - Everyday vocabulary
 
-Generate the Japanese content now. Only output the Japanese text, no English explanations.`;
+IMPORTANT: Output your response in the following JSON format:
+{
+  "japanese": "Your Japanese summary here",
+  "english": "English translation of the Japanese summary"
+}
+
+Make sure the English translation accurately reflects what you wrote in Japanese.`;
 
     // Call Venice.ai API
     const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
@@ -60,9 +66,11 @@ Generate the Japanese content now. Only output the Japanese text, no English exp
           },
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_tokens: 1500,
         venice_parameters: {
           enable_web_search: 'auto', // Enable real-time web search for current news
+          enable_web_citations: true, // Include source citations in response
+          return_search_results_as_documents: true, // Return search results as structured data
         },
       }),
     });
@@ -77,9 +85,53 @@ Generate the Japanese content now. Only output the Japanese text, no English exp
     }
 
     const data = await response.json();
-    const content = data.choices[0]?.message?.content || '';
+    const rawContent = data.choices[0]?.message?.content || '';
 
-    return NextResponse.json({ content });
+    // Extract search results/sources if available
+    const sources = data.choices[0]?.message?.tool_calls?.find(
+      (tc: any) => tc.function?.name === 'venice_web_search_documents'
+    )?.function?.arguments;
+
+    let sourcesArray = [];
+    if (sources) {
+      try {
+        const parsedSources = typeof sources === 'string' ? JSON.parse(sources) : sources;
+        sourcesArray = parsedSources.documents || parsedSources.results || [];
+      } catch (e) {
+        console.error('Error parsing sources:', e);
+      }
+    }
+
+    // Parse the JSON response from the model
+    let japanese = '';
+    let english = '';
+
+    try {
+      // Try to extract JSON from the response (might be wrapped in markdown code blocks)
+      const jsonMatch = rawContent.match(/```json\s*([\s\S]*?)\s*```/) ||
+                        rawContent.match(/\{[\s\S]*"japanese"[\s\S]*\}/);
+
+      if (jsonMatch) {
+        const jsonStr = jsonMatch[1] || jsonMatch[0];
+        const parsed = JSON.parse(jsonStr);
+        japanese = parsed.japanese || '';
+        english = parsed.english || '';
+      } else {
+        // Fallback: treat the whole response as Japanese if JSON parsing fails
+        japanese = rawContent;
+        english = 'Translation not available';
+      }
+    } catch (e) {
+      console.error('Error parsing JSON response:', e);
+      japanese = rawContent;
+      english = 'Translation not available';
+    }
+
+    return NextResponse.json({
+      japanese,
+      english,
+      sources: sourcesArray
+    });
   } catch (error) {
     console.error('Error in generate API:', error);
     return NextResponse.json(

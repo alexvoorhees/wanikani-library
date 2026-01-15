@@ -2,6 +2,12 @@
 
 import { useState, useEffect } from 'react';
 
+interface Source {
+  title?: string;
+  url?: string;
+  snippet?: string;
+}
+
 interface KanjiInfo {
   character: string;
   meanings: string[];
@@ -12,6 +18,8 @@ export default function Home() {
   const [vocabList, setVocabList] = useState<string[]>([]);
   const [topic, setTopic] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
+  const [englishTranslation, setEnglishTranslation] = useState('');
+  const [sources, setSources] = useState<Source[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [unknownKanji, setUnknownKanji] = useState<string[]>([]);
   const [kanjiInfo, setKanjiInfo] = useState<KanjiInfo[]>([]);
@@ -57,7 +65,9 @@ export default function Home() {
       });
 
       const data = await response.json();
-      setGeneratedContent(data.content);
+      setGeneratedContent(data.japanese || '');
+      setEnglishTranslation(data.english || '');
+      setSources(data.sources || []);
     } catch (error) {
       console.error('Error generating content:', error);
       alert('Failed to generate content. Please try again.');
@@ -253,21 +263,64 @@ export default function Home() {
 
         {/* Generated Content Section */}
         {generatedContent && !isLoading && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold text-gray-800">
-                Your Content
-              </h2>
-              <div className="flex gap-4 text-sm text-gray-600">
-                <span className="flex items-center gap-2">
-                  <span className="font-bold">Bold</span>
-                  = Unknown kanji (first appearance)
-                </span>
+          <div className="space-y-6">
+            {/* Sources Section */}
+            {sources.length > 0 && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+                  📰 Source Articles
+                </h2>
+                <div className="space-y-3">
+                  {sources.map((source, idx) => (
+                    <div key={idx} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-700 font-medium hover:underline"
+                      >
+                        {source.title || `Source ${idx + 1}`}
+                      </a>
+                      {source.snippet && (
+                        <p className="text-sm text-gray-600 mt-1">{source.snippet}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Japanese Content */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold text-gray-800">
+                  🇯🇵 Japanese Content
+                </h2>
+                <div className="flex gap-4 text-sm text-gray-600">
+                  <span className="flex items-center gap-2">
+                    <span className="font-bold">Bold</span>
+                    = Unknown kanji (first appearance)
+                  </span>
+                </div>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                {highlightText(generatedContent)}
               </div>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              {highlightText(generatedContent)}
-            </div>
+
+            {/* English Translation */}
+            {englishTranslation && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+                  🇺🇸 English Translation
+                </h2>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-gray-900 leading-relaxed text-lg whitespace-pre-wrap">
+                    {englishTranslation}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
