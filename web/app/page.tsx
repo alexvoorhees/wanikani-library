@@ -118,7 +118,7 @@ export default function Home() {
       );
     }
 
-    return <div className="whitespace-pre-wrap leading-relaxed text-lg">{segments}</div>;
+    return <div className="whitespace-pre-wrap leading-relaxed text-lg text-gray-900">{segments}</div>;
   };
 
   return (
