@@ -61,6 +61,9 @@ Generate the Japanese content now. Only output the Japanese text, no English exp
         ],
         temperature: 0.7,
         max_tokens: 1000,
+        venice_parameters: {
+          enable_web_search: 'auto', // Enable real-time web search for current news
+        },
       }),
     });
 
