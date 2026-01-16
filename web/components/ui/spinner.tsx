@@ -8,12 +8,12 @@ export interface SpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
 const Spinner = React.forwardRef<HTMLDivElement, SpinnerProps>(
   ({ className, size = "md", ...props }, ref) => {
     const sizeMap = {
-      sm: { container: "h-6 w-6", viewBox: "0 0 60 60", strokeWidth: 4 },
-      md: { container: "h-8 w-8", viewBox: "0 0 80 80", strokeWidth: 5 },
-      lg: { container: "h-16 w-16", viewBox: "0 0 120 120", strokeWidth: 6 },
+      sm: { container: "h-6 w-6", viewBox: "0 0 100 100" },
+      md: { container: "h-8 w-8", viewBox: "0 0 100 100" },
+      lg: { container: "h-16 w-16", viewBox: "0 0 100 100" },
     };
 
-    const { container, viewBox, strokeWidth } = sizeMap[size];
+    const { container, viewBox } = sizeMap[size];
 
     return (
       <div
@@ -27,62 +27,61 @@ const Spinner = React.forwardRef<HTMLDivElement, SpinnerProps>(
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
+          <defs>
+            {/* Filter to give organic ink-like texture */}
+            <filter id="brush-texture">
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.8"
+                numOctaves="3"
+                result="noise"
+              />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="noise"
+                scale="1.5"
+                xChannelSelector="R"
+                yChannelSelector="G"
+              />
+            </filter>
+          </defs>
+
           <style>
             {`
-              @keyframes brushStroke1 {
-                0%, 100% { stroke-dashoffset: 300; opacity: 0.3; }
-                25% { stroke-dashoffset: 0; opacity: 1; }
-                50% { stroke-dashoffset: -300; opacity: 0.3; }
+              @keyframes drawBrushStroke {
+                0% {
+                  stroke-dashoffset: 314;
+                  opacity: 0.7;
+                }
+                50% {
+                  opacity: 1;
+                }
+                100% {
+                  stroke-dashoffset: 0;
+                  opacity: 0.7;
+                }
               }
-              @keyframes brushStroke2 {
-                0%, 100% { stroke-dashoffset: 300; opacity: 0.3; }
-                50% { stroke-dashoffset: 0; opacity: 1; }
-                75% { stroke-dashoffset: -300; opacity: 0.3; }
-              }
-              @keyframes brushStroke3 {
-                0%, 100% { stroke-dashoffset: 0; opacity: 1; }
-                25% { stroke-dashoffset: -300; opacity: 0.3; }
-                75% { stroke-dashoffset: 300; opacity: 0.3; }
-              }
-              .brush-stroke-1 {
-                stroke-dasharray: 150;
-                animation: brushStroke1 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-              }
-              .brush-stroke-2 {
-                stroke-dasharray: 150;
-                animation: brushStroke2 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-              }
-              .brush-stroke-3 {
-                stroke-dasharray: 150;
-                animation: brushStroke3 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+              .brush-circle {
+                stroke-dasharray: 314;
+                animation: drawBrushStroke 2s ease-in-out infinite;
+                filter: url(#brush-texture);
               }
             `}
           </style>
 
-          {/* Three brush stroke arcs forming a circular pattern */}
+          {/* Circular brush stroke with organic variation */}
           <path
-            className="brush-stroke-1"
-            d="M 60 10 A 50 50 0 0 1 95 80"
+            className="brush-circle"
+            d="M 50,15
+               C 70,15 85,30 85,50
+               C 85,70 70,85 50,85
+               C 30,85 15,70 15,50
+               C 15,30 30,15 50,15"
             stroke="hsl(225 35% 35%)"
-            strokeWidth={strokeWidth}
+            strokeWidth="8"
             strokeLinecap="round"
             fill="none"
-          />
-          <path
-            className="brush-stroke-2"
-            d="M 95 80 A 50 50 0 0 1 25 80"
-            stroke="hsl(225 35% 35%)"
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            fill="none"
-          />
-          <path
-            className="brush-stroke-3"
-            d="M 25 80 A 50 50 0 0 1 60 10"
-            stroke="hsl(225 35% 35%)"
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            fill="none"
+            opacity="0.9"
           />
         </svg>
       </div>
