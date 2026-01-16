@@ -24,29 +24,32 @@ export async function POST(request: NextRequest) {
     const fullVocabList = vocabList.join(', ');
     const totalVocabCount = vocabList.length;
 
-    const prompt = `You are a Japanese language content generator. Your task is to search for recent English news articles about "${topic}", then create a simplified Japanese summary.
+    const prompt = `You are a Japanese language content generator helping a learner practice reading.
 
-CRITICAL CONSTRAINTS:
-1. Find recent English news/articles about: ${topic}
-2. Write a 1-3 paragraph summary in Japanese using ONLY vocabulary from the user's known word list below
-3. The user knows ${totalVocabCount} words total - their COMPLETE vocabulary list is provided below
-4. Aim for ~90% of words to be from their vocabulary list
-5. Keep the content interesting and informative
-6. Use simple grammar structures appropriate for their level
+VOCABULARY CONSTRAINT (HIGHEST PRIORITY - YOU MUST FOLLOW THIS):
+- Use ONLY kanji/words from the user's vocabulary list below
+- You may introduce AT MOST 2-3 new kanji that are NOT in their list
+- For ANY other words not in their vocabulary, write them in HIRAGANA instead of kanji
+- Grammar particles (は, が, を, に, で, と, も, か, ね, よ, etc.) are always allowed
+- This constraint is CRITICAL - using too many unknown kanji ruins the learning experience
 
-Here is the user's COMPLETE known vocabulary list (${totalVocabCount} words):
+The user knows ${totalVocabCount} words. Here is their COMPLETE vocabulary list:
 ${fullVocabList}
 
-IMPORTANT FORMATTING RULES:
-1. Add spaces between distinct Japanese words/particles to make parsing easier (e.g., "今日 は 天気 が いい です" instead of "今日は天気がいいです")
-2. Do NOT include any citation numbers or references in the Japanese text
-3. Output your response in the following JSON format:
-{
-  "japanese": "Your Japanese summary here with spaces between words",
-  "english": "English translation of the Japanese summary"
-}
+CONTENT TASK:
+1. Search for recent news about: ${topic}
+2. Write 1-2 short paragraphs summarizing it in simple Japanese
+3. Use simple grammar structures appropriate for a learner
+4. When unsure if a word is known, use hiragana or a simpler alternative
 
-Make sure the English translation accurately reflects what you wrote in Japanese.`;
+FORMATTING RULES:
+1. Add spaces between words/particles (e.g., "今日 は 天気 が いい です")
+2. Do NOT include citation numbers or references
+3. Output as JSON:
+{
+  "japanese": "Your Japanese text with spaces between words",
+  "english": "English translation"
+}`;
 
     // Call Venice.ai API
     const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
@@ -63,7 +66,7 @@ Make sure the English translation accurately reflects what you wrote in Japanese
             content: prompt,
           },
         ],
-        temperature: 0.7,
+        temperature: 0.3, // Lower temperature for stricter vocabulary adherence
         max_tokens: 1500,
         venice_parameters: {
           enable_web_search: 'auto', // Enable real-time web search for current news
