@@ -9,12 +9,6 @@ import { ReaderSurface } from '@/components/ui/reader-surface';
 import { Spinner } from '@/components/ui/spinner';
 import { AlertCircle, X } from 'lucide-react';
 
-interface Source {
-  title?: string;
-  url?: string;
-  snippet?: string;
-}
-
 interface KanjiInfo {
   character: string;
   meanings: string[];
@@ -26,7 +20,6 @@ export default function Home() {
   const [topic, setTopic] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
-  const [sources, setSources] = useState<Source[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [unknownKanji, setUnknownKanji] = useState<string[]>([]);
   const [kanjiInfo, setKanjiInfo] = useState<KanjiInfo[]>([]);
@@ -83,13 +76,33 @@ export default function Home() {
 
       setGeneratedContent(data.japanese || '');
       setEnglishTranslation(data.english || '');
-      setSources(data.sources || []);
     } catch (error) {
       console.error('Error generating content:', error);
       setError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Kanji tooltip component
+  const KanjiWithTooltip = ({ char, info }: { char: string; info?: KanjiInfo }) => {
+    return (
+      <span className="relative inline-block group">
+        <span className="font-bold text-primary cursor-help">
+          {char}
+        </span>
+        {info && (
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-nowrap pointer-events-none">
+            <span className="block text-2xl font-japanese text-primary mb-1">{info.character}</span>
+            <span className="block text-xs text-muted-foreground uppercase tracking-wider">Reading</span>
+            <span className="block text-sm mb-1">{info.readings.slice(0, 2).join(', ')}</span>
+            <span className="block text-xs text-muted-foreground uppercase tracking-wider">Meaning</span>
+            <span className="block text-sm">{info.meanings.slice(0, 2).join(', ')}</span>
+            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-white" />
+          </span>
+        )}
+      </span>
+    );
   };
 
   // Highlight unknown kanji in generated content
@@ -127,11 +140,12 @@ export default function Home() {
             currentSegment = '';
           }
 
-          // Add the bolded kanji
+          // Find kanji info for this character
+          const info = kanjiInfo.find(k => k.character === char);
+
+          // Add the bolded kanji with tooltip
           segments.push(
-            <span key={`bold-${segmentKey++}`} className="font-bold text-primary">
-              {char}
-            </span>
+            <KanjiWithTooltip key={`bold-${segmentKey++}`} char={char} info={info} />
           );
 
           // Mark this kanji as seen
@@ -320,38 +334,12 @@ export default function Home() {
         {/* Generated Content Section - Main reading area */}
         {generatedContent && !isLoading && (
           <div className="space-y-6">
-            {/* Sources Section - collapsible/secondary */}
-            {sources.length > 0 && (
-              <Card>
-                <CardTitle className="mb-4 text-base">Source Articles</CardTitle>
-                <CardContent>
-                  <div className="space-y-2">
-                    {sources.map((source, idx) => (
-                      <div key={idx} className="p-3 bg-muted/50 rounded-md border border-border-subtle">
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary font-medium hover:underline underline-offset-2"
-                        >
-                          {source.title || `Source ${idx + 1}`}
-                        </a>
-                        {source.snippet && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{source.snippet}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             {/* Japanese Content - Primary reading surface */}
             <Card variant="reader">
               <div className="flex justify-between items-center mb-5">
                 <CardTitle>Japanese Content</CardTitle>
                 <span className="text-xs text-muted-foreground">
-                  <span className="font-bold text-primary">Bold</span> = New kanji
+                  <span className="font-bold text-primary">Bold</span> = New kanji (hover for info)
                 </span>
               </div>
               <ReaderSurface variant="japanese">
