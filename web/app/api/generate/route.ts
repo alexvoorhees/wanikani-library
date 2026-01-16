@@ -19,28 +19,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a sample of vocabulary to include in the prompt (not all 1000+ words)
-    const vocabSample = vocabList.slice(0, 200).join(', ');
+    // Include the full vocabulary list for accurate content generation
+    // LLMs like Llama 3.3 70B have 128K context - 2000+ Japanese words (~3K tokens) fits easily
+    const fullVocabList = vocabList.join(', ');
     const totalVocabCount = vocabList.length;
 
     const prompt = `You are a Japanese language content generator. Your task is to search for recent English news articles about "${topic}", then create a simplified Japanese summary.
 
 CRITICAL CONSTRAINTS:
 1. Find recent English news/articles about: ${topic}
-2. Write a 1-3 paragraph summary in Japanese using ONLY vocabulary from the user's known word list
-3. The user knows ${totalVocabCount} words total
+2. Write a 1-3 paragraph summary in Japanese using ONLY vocabulary from the user's known word list below
+3. The user knows ${totalVocabCount} words total - their COMPLETE vocabulary list is provided below
 4. Aim for ~90% of words to be from their vocabulary list
 5. Keep the content interesting and informative
 6. Use simple grammar structures appropriate for their level
 
-Here is a sample of their known vocabulary (first 200 words):
-${vocabSample}
-
-The user knows ${totalVocabCount} total words including these patterns:
-- Basic kanji and compounds
-- Common phrases (お母さん, ありがとう, etc.)
-- Numbers and counters (〜円, 〜人, etc.)
-- Everyday vocabulary
+Here is the user's COMPLETE known vocabulary list (${totalVocabCount} words):
+${fullVocabList}
 
 IMPORTANT FORMATTING RULES:
 1. Add spaces between distinct Japanese words/particles to make parsing easier (e.g., "今日 は 天気 が いい です" instead of "今日は天気がいいです")
