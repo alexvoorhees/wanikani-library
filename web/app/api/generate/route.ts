@@ -119,23 +119,56 @@ Make sure the English translation accurately reflects what you wrote in Japanese
     let japanese = '';
     let english = '';
 
-    try {
-      // Try to extract JSON from the response (might be wrapped in markdown code blocks)
-      const jsonMatch = rawContent.match(/```json\s*([\s\S]*?)\s*```/) ||
-                        rawContent.match(/\{[\s\S]*"japanese"[\s\S]*\}/);
+    // Helper function to extract fields from various formats
+    const extractFields = (content: string): { japanese: string; english: string } | null => {
+      // Try standard JSON parse first (for properly formatted JSON)
+      try {
+        // Check for markdown code block
+        const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+          const parsed = JSON.parse(codeBlockMatch[1]);
+          if (parsed.japanese) {
+            return { japanese: parsed.japanese, english: parsed.english || '' };
+          }
+        }
 
-      if (jsonMatch) {
-        const jsonStr = jsonMatch[1] || jsonMatch[0];
-        const parsed = JSON.parse(jsonStr);
-        japanese = parsed.japanese || '';
-        english = parsed.english || '';
-      } else {
-        // Fallback: treat the whole response as Japanese if JSON parsing fails
-        japanese = rawContent;
-        english = 'Translation not available';
+        // Try parsing the whole content as JSON
+        const parsed = JSON.parse(content);
+        if (parsed.japanese) {
+          return { japanese: parsed.japanese, english: parsed.english || '' };
+        }
+      } catch {
+        // JSON parse failed, try regex extraction
       }
-    } catch (e) {
-      console.error('Error parsing JSON response:', e);
+
+      // Extract using regex for various formats (quoted or unquoted values)
+      // Match: "japanese": "value" OR japanese: value
+      const japaneseMatch = content.match(/["']?japanese["']?\s*:\s*["']?([\s\S]*?)["']?\s*,\s*["']?english["']?/i) ||
+                           content.match(/["']?japanese["']?\s*:\s*["']([^"']+)["']/i);
+
+      const englishMatch = content.match(/["']?english["']?\s*:\s*["']?([\s\S]*?)["']?\s*\}?$/i) ||
+                          content.match(/["']?english["']?\s*:\s*["']([^"']+)["']/i);
+
+      if (japaneseMatch) {
+        let jpText = japaneseMatch[1].trim();
+        let enText = englishMatch ? englishMatch[1].trim() : '';
+
+        // Clean up any trailing punctuation or brackets from regex capture
+        jpText = jpText.replace(/[,\}]$/, '').trim();
+        enText = enText.replace(/[\}]$/, '').trim();
+
+        return { japanese: jpText, english: enText };
+      }
+
+      return null;
+    };
+
+    const extracted = extractFields(rawContent);
+    if (extracted) {
+      japanese = extracted.japanese;
+      english = extracted.english || 'Translation not available';
+    } else {
+      // Last resort: treat the whole response as Japanese
       japanese = rawContent;
       english = 'Translation not available';
     }

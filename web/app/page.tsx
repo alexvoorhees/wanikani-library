@@ -92,13 +92,13 @@ export default function Home() {
           {char}
         </span>
         {info && (
-          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-card border border-border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-nowrap pointer-events-none">
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-border rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-nowrap pointer-events-none">
             <span className="block text-2xl font-japanese text-primary mb-1">{info.character}</span>
             <span className="block text-xs text-muted-foreground uppercase tracking-wider">Reading</span>
             <span className="block text-sm mb-1">{info.readings.slice(0, 2).join(', ')}</span>
             <span className="block text-xs text-muted-foreground uppercase tracking-wider">Meaning</span>
             <span className="block text-sm">{info.meanings.slice(0, 2).join(', ')}</span>
-            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-border" />
+            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-white" />
           </span>
         )}
       </span>
