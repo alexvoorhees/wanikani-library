@@ -42,9 +42,12 @@ The user knows ${totalVocabCount} total words including these patterns:
 - Numbers and counters (〜円, 〜人, etc.)
 - Everyday vocabulary
 
-IMPORTANT: Output your response in the following JSON format:
+IMPORTANT FORMATTING RULES:
+1. Add spaces between distinct Japanese words/particles to make parsing easier (e.g., "今日 は 天気 が いい です" instead of "今日は天気がいいです")
+2. Do NOT include any citation numbers or references in the Japanese text
+3. Output your response in the following JSON format:
 {
-  "japanese": "Your Japanese summary here",
+  "japanese": "Your Japanese summary here with spaces between words",
   "english": "English translation of the Japanese summary"
 }
 
@@ -69,8 +72,8 @@ Make sure the English translation accurately reflects what you wrote in Japanese
         max_tokens: 1500,
         venice_parameters: {
           enable_web_search: 'auto', // Enable real-time web search for current news
-          enable_web_citations: true, // Include source citations in response
-          return_search_results_as_documents: true, // Return search results as structured data
+          enable_web_citations: false, // Disable inline citations
+          return_search_results_as_documents: false,
         },
       }),
     });
@@ -112,21 +115,6 @@ Make sure the English translation accurately reflects what you wrote in Japanese
     const data = await response.json();
     const rawContent = data.choices[0]?.message?.content || '';
 
-    // Extract search results/sources if available
-    const sources = data.choices[0]?.message?.tool_calls?.find(
-      (tc: any) => tc.function?.name === 'venice_web_search_documents'
-    )?.function?.arguments;
-
-    let sourcesArray = [];
-    if (sources) {
-      try {
-        const parsedSources = typeof sources === 'string' ? JSON.parse(sources) : sources;
-        sourcesArray = parsedSources.documents || parsedSources.results || [];
-      } catch (e) {
-        console.error('Error parsing sources:', e);
-      }
-    }
-
     // Parse the JSON response from the model
     let japanese = '';
     let english = '';
@@ -154,8 +142,7 @@ Make sure the English translation accurately reflects what you wrote in Japanese
 
     return NextResponse.json({
       japanese,
-      english,
-      sources: sourcesArray
+      english
     });
   } catch (error) {
     console.error('Error in generate API:', error);
