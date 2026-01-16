@@ -157,11 +157,11 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 1.5px solid hsl(var(--accent-vermilion));
-  border-radius: 2px;
-  font-size: 0.625rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 2px solid hsl(var(--accent-vermilion));
+  border-radius: 3px;
+  font-size: 1.25rem;
   color: hsl(var(--accent-vermilion));
   font-weight: 600;
   letter-spacing: -0.05em;
