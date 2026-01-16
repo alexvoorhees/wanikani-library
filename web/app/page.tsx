@@ -272,6 +272,11 @@ export default function Home() {
                   type="text"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isLoading && vocabList.length > 0) {
+                      handleGenerate();
+                    }
+                  }}
                   placeholder="e.g., technology news, Japanese culture, sports..."
                   className="flex-1"
                 />
