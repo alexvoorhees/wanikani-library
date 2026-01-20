@@ -53,6 +53,7 @@ Output just the summary text, no formatting or extra commentary.`;
           enable_web_search: 'auto', // Enable web search for current news
           enable_web_citations: false,
           return_search_results_as_documents: false,
+          disable_thinking: true, // Prevent Qwen3 thinking tokens in output
         },
       }),
     });
@@ -131,6 +132,9 @@ FORMATTING RULES:
         ],
         temperature: 0.3, // Lower temperature for stricter vocabulary adherence
         max_tokens: 1500,
+        venice_parameters: {
+          disable_thinking: true, // Prevent Qwen3 thinking tokens in output
+        },
       }),
     });
 
