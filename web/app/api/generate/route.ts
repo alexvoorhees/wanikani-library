@@ -2,6 +2,55 @@ import { NextRequest, NextResponse } from 'next/server';
 
 type InputMode = 'topic' | 'url' | 'text';
 
+// Helper function to call Venice API with retry logic
+async function callVeniceWithRetry(
+  apiKey: string,
+  body: object,
+  maxRetries: number = 2
+): Promise<{ ok: boolean; status: number; data?: unknown; errorText?: string }> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return { ok: true, status: response.status, data };
+      }
+
+      // Don't retry on client errors (4xx) except 429
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        const errorText = await response.text();
+        return { ok: false, status: response.status, errorText };
+      }
+
+      // Retry on 5xx errors and 429
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // 1s, 2s backoff
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      const errorText = await response.text();
+      return { ok: false, status: response.status, errorText };
+    } catch (error) {
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      return { ok: false, status: 0, errorText: String(error) };
+    }
+  }
+  return { ok: false, status: 0, errorText: 'Max retries exceeded' };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { inputMode = 'topic', topic, url, text, vocabList } = await request.json();
@@ -229,35 +278,28 @@ FORMATTING RULES:
   "english": "The original English content"
 }`;
 
-    // Call Venice.ai API for translation
-    const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'qwen3-235b', // Venice Large - powerful model for constrained translation
-        messages: [
-          {
-            role: 'user',
-            content: translationPrompt,
-          },
-        ],
-        temperature: 0.3, // Lower temperature for stricter vocabulary adherence
-        max_tokens: 1500,
-        venice_parameters: {
-          disable_thinking: true, // Prevent Qwen3 thinking tokens in output
+    // Call Venice.ai API for translation with retry logic
+    // Using qwen3-30b-a3b for faster response (good balance of speed and quality)
+    const translationResult = await callVeniceWithRetry(apiKey, {
+      model: 'qwen3-30b-a3b', // Faster model for translation
+      messages: [
+        {
+          role: 'user',
+          content: translationPrompt,
         },
-      }),
-    });
+      ],
+      temperature: 0.3, // Lower temperature for stricter vocabulary adherence
+      max_tokens: 1500,
+      venice_parameters: {
+        disable_thinking: true, // Prevent Qwen3 thinking tokens in output
+      },
+    }, 2); // Retry up to 2 times
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Venice API error (translation):', response.status, errorText);
+    if (!translationResult.ok) {
+      console.error('Venice API error (translation):', translationResult.status, translationResult.errorText);
 
       // Handle specific error cases
-      if (response.status === 429) {
+      if (translationResult.status === 429) {
         return NextResponse.json(
           {
             error: 'Rate limit exceeded. Venice AI has too many requests. Please wait a few minutes and try again.',
@@ -267,7 +309,7 @@ FORMATTING RULES:
         );
       }
 
-      if (response.status === 401) {
+      if (translationResult.status === 401) {
         return NextResponse.json(
           {
             error: 'Invalid or missing API key. Please check your Venice API key configuration.',
@@ -277,16 +319,26 @@ FORMATTING RULES:
         );
       }
 
+      if (translationResult.status === 503) {
+        return NextResponse.json(
+          {
+            error: 'Venice AI service is temporarily unavailable. Please try again in a moment.',
+            errorType: 'SERVICE_UNAVAILABLE'
+          },
+          { status: 503 }
+        );
+      }
+
       return NextResponse.json(
         {
-          error: `Venice API error (${response.status}): ${errorText || 'Unknown error'}`,
+          error: `Venice API error (${translationResult.status}): ${translationResult.errorText || 'Unknown error'}`,
           errorType: 'API_ERROR'
         },
-        { status: response.status }
+        { status: translationResult.status || 500 }
       );
     }
 
-    const data = await response.json();
+    const data = translationResult.data as { choices: Array<{ message: { content: string } }> };
     const rawContent = data.choices[0]?.message?.content || '';
 
     // Parse the JSON response from the model
