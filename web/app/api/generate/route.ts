@@ -1,12 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+type InputMode = 'topic' | 'url' | 'text';
+
 export async function POST(request: NextRequest) {
   try {
-    const { topic, vocabList } = await request.json();
+    const { inputMode = 'topic', topic, url, text, vocabList } = await request.json();
 
-    if (!topic || !vocabList || vocabList.length === 0) {
+    if (!vocabList || vocabList.length === 0) {
       return NextResponse.json(
-        { error: 'Topic and vocabulary list are required' },
+        { error: 'Vocabulary list is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate based on input mode
+    if (inputMode === 'topic' && !topic) {
+      return NextResponse.json(
+        { error: 'Topic is required for web search mode' },
+        { status: 400 }
+      );
+    }
+    if (inputMode === 'url' && !url) {
+      return NextResponse.json(
+        { error: 'URL is required for URL mode' },
+        { status: 400 }
+      );
+    }
+    if (inputMode === 'text' && !text) {
+      return NextResponse.json(
+        { error: 'Text is required for text input mode' },
         { status: 400 }
       );
     }
@@ -19,9 +41,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // STEP 1: News Gathering
-    // Use smaller, faster model to search and summarize news in English
-    const newsPrompt = `You are a news researcher. Search for recent news about the following topic and provide a clear, concise summary in English.
+    // STEP 1: Get English content based on input mode
+    let sourceContent = '';
+
+    if (inputMode === 'topic') {
+      // Mode A: Web search for news about a topic
+      const newsPrompt = `You are a news researcher. Search for recent news about the following topic and provide a clear, concise summary in English.
 
 TOPIC: ${topic}
 
@@ -33,55 +58,144 @@ TASK:
 
 Output just the summary text, no formatting or extra commentary.`;
 
-    const newsResponse = await fetch('https://api.venice.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'qwen3-4b', // Venice Small - fast model for news gathering
-        messages: [
-          {
-            role: 'user',
-            content: newsPrompt,
+      const newsResponse = await fetch('https://api.venice.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'qwen3-4b', // Venice Small - fast model for news gathering
+          messages: [
+            {
+              role: 'user',
+              content: newsPrompt,
+            },
+          ],
+          temperature: 0.5,
+          max_tokens: 800,
+          venice_parameters: {
+            enable_web_search: 'auto', // Enable web search for current news
+            enable_web_citations: false,
+            return_search_results_as_documents: false,
+            disable_thinking: true, // Prevent Qwen3 thinking tokens in output
           },
-        ],
-        temperature: 0.5,
-        max_tokens: 800,
-        venice_parameters: {
-          enable_web_search: 'auto', // Enable web search for current news
-          enable_web_citations: false,
-          return_search_results_as_documents: false,
-          disable_thinking: true, // Prevent Qwen3 thinking tokens in output
-        },
-      }),
-    });
+        }),
+      });
 
-    if (!newsResponse.ok) {
-      const errorText = await newsResponse.text();
-      console.error('Venice API error (news gathering):', newsResponse.status, errorText);
-      return NextResponse.json(
-        {
-          error: `Failed to gather news: ${newsResponse.status}`,
-          errorType: 'API_ERROR'
-        },
-        { status: newsResponse.status }
-      );
-    }
+      if (!newsResponse.ok) {
+        const errorText = await newsResponse.text();
+        console.error('Venice API error (news gathering):', newsResponse.status, errorText);
+        return NextResponse.json(
+          {
+            error: `Failed to gather news: ${newsResponse.status}`,
+            errorType: 'API_ERROR'
+          },
+          { status: newsResponse.status }
+        );
+      }
 
-    const newsData = await newsResponse.json();
-    const newsContent = newsData.choices[0]?.message?.content || '';
+      const newsData = await newsResponse.json();
+      sourceContent = newsData.choices[0]?.message?.content || '';
 
-    if (!newsContent) {
-      return NextResponse.json(
-        { error: 'No news content retrieved' },
-        { status: 500 }
-      );
+      if (!sourceContent) {
+        return NextResponse.json(
+          { error: 'No news content retrieved' },
+          { status: 500 }
+        );
+      }
+    } else if (inputMode === 'url') {
+      // Mode B: Fetch and analyze content from a URL
+      try {
+        // Fetch the webpage content
+        const fetchResponse = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; JapaneseReader/1.0)',
+          },
+        });
+
+        if (!fetchResponse.ok) {
+          return NextResponse.json(
+            { error: `Failed to fetch URL: ${fetchResponse.status}` },
+            { status: 400 }
+          );
+        }
+
+        const htmlContent = await fetchResponse.text();
+
+        // Use AI to extract and summarize the main content from the HTML
+        const extractPrompt = `You are a content extractor. Analyze this webpage HTML and extract the main article or content.
+
+URL: ${url}
+
+HTML CONTENT (truncated):
+${htmlContent.slice(0, 15000)}
+
+TASK:
+1. Identify the main article or content (ignore navigation, ads, footers, etc.)
+2. Extract the key information and write a clear summary in English
+3. Write 1-3 paragraphs that capture the essential information
+4. Keep it factual and informative
+
+Output just the summary text, no formatting or extra commentary.`;
+
+        const extractResponse = await fetch('https://api.venice.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'qwen3-4b',
+            messages: [
+              {
+                role: 'user',
+                content: extractPrompt,
+              },
+            ],
+            temperature: 0.3,
+            max_tokens: 1000,
+            venice_parameters: {
+              disable_thinking: true,
+            },
+          }),
+        });
+
+        if (!extractResponse.ok) {
+          const errorText = await extractResponse.text();
+          console.error('Venice API error (URL extraction):', extractResponse.status, errorText);
+          return NextResponse.json(
+            {
+              error: `Failed to analyze URL content: ${extractResponse.status}`,
+              errorType: 'API_ERROR'
+            },
+            { status: extractResponse.status }
+          );
+        }
+
+        const extractData = await extractResponse.json();
+        sourceContent = extractData.choices[0]?.message?.content || '';
+
+        if (!sourceContent) {
+          return NextResponse.json(
+            { error: 'Could not extract content from the URL' },
+            { status: 500 }
+          );
+        }
+      } catch (fetchError) {
+        console.error('Error fetching URL:', fetchError);
+        return NextResponse.json(
+          { error: 'Failed to fetch the URL. Please check the URL and try again.' },
+          { status: 400 }
+        );
+      }
+    } else if (inputMode === 'text') {
+      // Mode C: Use the provided text directly
+      sourceContent = text.slice(0, 10000); // Enforce character limit
     }
 
     // STEP 2: Translation with Vocabulary Constraints
-    // Use larger model to translate English news to simple Japanese using known vocabulary
+    // Use larger model to translate English content to simple Japanese using known vocabulary
     const fullVocabList = vocabList.join(', ');
     const totalVocabCount = vocabList.length;
 
@@ -98,7 +212,7 @@ The user knows ${totalVocabCount} words. Here is their COMPLETE vocabulary list:
 ${fullVocabList}
 
 CONTENT TO TRANSLATE:
-${newsContent}
+${sourceContent}
 
 TASK:
 1. Translate the above English text into simple Japanese
@@ -236,7 +350,7 @@ FORMATTING RULES:
     return NextResponse.json({
       japanese,
       english,
-      newsContent // Include the original English news for display
+      sourceContent // Include the original English content for display
     });
   } catch (error) {
     console.error('Error in generate API:', error);
