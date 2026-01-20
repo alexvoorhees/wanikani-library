@@ -110,6 +110,12 @@ export default function Home() {
         return;
       }
 
+      // Validate that we received content
+      if (!data.japanese || data.japanese.trim().length === 0) {
+        setError('No content was generated. Please try again or try a different source.');
+        return;
+      }
+
       setGeneratedContent(data.japanese || '');
       setEnglishTranslation(data.english || '');
       setNewsContent(data.newsContent || data.sourceContent || '');

@@ -364,6 +364,18 @@ FORMATTING RULES:
       english = 'Translation not available';
     }
 
+    // Validate that we actually got content
+    if (!japanese || japanese.trim().length === 0) {
+      console.error('Translation API returned empty content. Raw response:', rawContent);
+      return NextResponse.json(
+        {
+          error: 'Failed to generate Japanese content. The translation service returned an empty response. Please try again.',
+          debug: process.env.NODE_ENV === 'development' ? { rawContent } : undefined
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       japanese,
       english,
