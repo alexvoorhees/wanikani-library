@@ -20,6 +20,7 @@ export default function Home() {
   const [topic, setTopic] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
+  const [newsContent, setNewsContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [unknownKanji, setUnknownKanji] = useState<string[]>([]);
   const [kanjiInfo, setKanjiInfo] = useState<KanjiInfo[]>([]);
@@ -76,6 +77,7 @@ export default function Home() {
 
       setGeneratedContent(data.japanese || '');
       setEnglishTranslation(data.english || '');
+      setNewsContent(data.newsContent || '');
     } catch (error) {
       console.error('Error generating content:', error);
       setError('Network error. Please check your connection and try again.');
@@ -331,7 +333,10 @@ export default function Home() {
           <Card className="mb-6">
             <div className="flex flex-col items-center justify-center gap-4 py-8">
               <Spinner size="lg" />
-              <p className="text-muted-foreground text-sm">Generating your Japanese content...</p>
+              <div className="text-center">
+                <p className="text-muted-foreground text-sm mb-1">Generating your Japanese content...</p>
+                <p className="text-muted-foreground text-xs">Step 1: Gathering news • Step 2: Translating to Japanese</p>
+              </div>
             </div>
           </Card>
         )}
@@ -339,6 +344,18 @@ export default function Home() {
         {/* Generated Content Section - Main reading area */}
         {generatedContent && !isLoading && (
           <div className="space-y-6">
+            {/* News Source Content - Shows original English news */}
+            {newsContent && (
+              <Card variant="reader">
+                <CardTitle className="mb-4 text-muted-foreground">Source News (English)</CardTitle>
+                <ReaderSurface variant="english">
+                  <p className="text-foreground/70 leading-relaxed whitespace-pre-wrap text-sm">
+                    {newsContent}
+                  </p>
+                </ReaderSurface>
+              </Card>
+            )}
+
             {/* Japanese Content - Primary reading surface */}
             <Card variant="reader">
               <div className="flex justify-between items-center mb-5">
