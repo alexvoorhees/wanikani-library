@@ -305,13 +305,13 @@ export default function Home() {
             <CardTitle className="mb-4">Choose your content source</CardTitle>
             <CardContent>
               {/* Mode Selector */}
-              <div className="flex gap-2 mb-4">
+              <div className="flex gap-2 mb-4 p-1 bg-muted/50 rounded-lg w-fit">
                 <button
                   onClick={() => setInputMode('topic')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
                     inputMode === 'topic'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'bg-transparent hover:bg-muted text-muted-foreground'
                   }`}
                 >
                   <Search className="h-4 w-4" />
@@ -321,8 +321,8 @@ export default function Home() {
                   onClick={() => setInputMode('url')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
                     inputMode === 'url'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'bg-transparent hover:bg-muted text-muted-foreground'
                   }`}
                 >
                   <Link className="h-4 w-4" />
@@ -332,8 +332,8 @@ export default function Home() {
                   onClick={() => setInputMode('text')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
                     inputMode === 'text'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'bg-transparent hover:bg-muted text-muted-foreground'
                   }`}
                 >
                   <FileText className="h-4 w-4" />
