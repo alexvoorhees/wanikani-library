@@ -2,6 +2,55 @@ import { NextRequest, NextResponse } from 'next/server';
 
 type InputMode = 'topic' | 'url';
 
+// Helper function to call Venice API with retry logic
+async function callVeniceWithRetry(
+  apiKey: string,
+  body: object,
+  maxRetries: number = 2
+): Promise<{ ok: boolean; status: number; data?: unknown; errorText?: string }> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return { ok: true, status: response.status, data };
+      }
+
+      // Don't retry on client errors (4xx) except 429
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        const errorText = await response.text();
+        return { ok: false, status: response.status, errorText };
+      }
+
+      // Retry on 5xx errors and 429
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // 1s, 2s backoff
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      const errorText = await response.text();
+      return { ok: false, status: response.status, errorText };
+    } catch (error) {
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      return { ok: false, status: 0, errorText: String(error) };
+    }
+  }
+  return { ok: false, status: 0, errorText: 'Max retries exceeded' };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { inputMode, topic, url } = await request.json();
@@ -52,36 +101,28 @@ TASK:
 
 Output just the summary text, no formatting or extra commentary.`;
 
-      const newsResponse = await fetch('https://api.venice.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'qwen3-4b', // Venice Small - fast model for news gathering
-          messages: [
-            {
-              role: 'user',
-              content: newsPrompt,
-            },
-          ],
-          temperature: 0.5,
-          max_tokens: 800,
-          venice_parameters: {
-            enable_web_search: 'auto', // Enable web search for current news
-            enable_web_citations: false,
-            return_search_results_as_documents: false,
-            disable_thinking: true, // Prevent Qwen3 thinking tokens in output
+      const result = await callVeniceWithRetry(apiKey, {
+        model: 'qwen3-4b', // Venice Small - fast model for news gathering
+        messages: [
+          {
+            role: 'user',
+            content: newsPrompt,
           },
-        }),
-      });
+        ],
+        temperature: 0.5,
+        max_tokens: 800,
+        venice_parameters: {
+          enable_web_search: 'auto', // Enable web search for current news
+          enable_web_citations: false,
+          return_search_results_as_documents: false,
+          disable_thinking: true, // Prevent Qwen3 thinking tokens in output
+        },
+      }, 2);
 
-      if (!newsResponse.ok) {
-        const errorText = await newsResponse.text();
-        console.error('Venice API error (news gathering):', newsResponse.status, errorText);
+      if (!result.ok) {
+        console.error('Venice API error (news gathering):', result.status, result.errorText);
 
-        if (newsResponse.status === 429) {
+        if (result.status === 429) {
           return NextResponse.json(
             {
               error: 'Rate limit exceeded. Venice AI has too many requests. Please wait a few minutes and try again.',
@@ -91,16 +132,26 @@ Output just the summary text, no formatting or extra commentary.`;
           );
         }
 
+        if (result.status === 503) {
+          return NextResponse.json(
+            {
+              error: 'Venice AI service is temporarily unavailable. Please try again in a moment.',
+              errorType: 'SERVICE_UNAVAILABLE'
+            },
+            { status: 503 }
+          );
+        }
+
         return NextResponse.json(
           {
-            error: `Failed to gather news: ${newsResponse.status}`,
+            error: `Failed to gather news: ${result.status}`,
             errorType: 'API_ERROR'
           },
-          { status: newsResponse.status }
+          { status: result.status || 500 }
         );
       }
 
-      const newsData = await newsResponse.json();
+      const newsData = result.data as { choices: Array<{ message: { content: string } }> };
       sourceContent = newsData.choices[0]?.message?.content || '';
 
       if (!sourceContent) {
@@ -144,33 +195,25 @@ TASK:
 
 Output just the summary text, no formatting or extra commentary.`;
 
-        const extractResponse = await fetch('https://api.venice.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'qwen3-4b',
-            messages: [
-              {
-                role: 'user',
-                content: extractPrompt,
-              },
-            ],
-            temperature: 0.3,
-            max_tokens: 1000,
-            venice_parameters: {
-              disable_thinking: true,
+        const result = await callVeniceWithRetry(apiKey, {
+          model: 'qwen3-4b',
+          messages: [
+            {
+              role: 'user',
+              content: extractPrompt,
             },
-          }),
-        });
+          ],
+          temperature: 0.3,
+          max_tokens: 1000,
+          venice_parameters: {
+            disable_thinking: true,
+          },
+        }, 2);
 
-        if (!extractResponse.ok) {
-          const errorText = await extractResponse.text();
-          console.error('Venice API error (URL extraction):', extractResponse.status, errorText);
+        if (!result.ok) {
+          console.error('Venice API error (URL extraction):', result.status, result.errorText);
 
-          if (extractResponse.status === 429) {
+          if (result.status === 429) {
             return NextResponse.json(
               {
                 error: 'Rate limit exceeded. Venice AI has too many requests. Please wait a few minutes and try again.',
@@ -180,16 +223,26 @@ Output just the summary text, no formatting or extra commentary.`;
             );
           }
 
+          if (result.status === 503) {
+            return NextResponse.json(
+              {
+                error: 'Venice AI service is temporarily unavailable. Please try again in a moment.',
+                errorType: 'SERVICE_UNAVAILABLE'
+              },
+              { status: 503 }
+            );
+          }
+
           return NextResponse.json(
             {
-              error: `Failed to analyze URL content: ${extractResponse.status}`,
+              error: `Failed to analyze URL content: ${result.status}`,
               errorType: 'API_ERROR'
             },
-            { status: extractResponse.status }
+            { status: result.status || 500 }
           );
         }
 
-        const extractData = await extractResponse.json();
+        const extractData = result.data as { choices: Array<{ message: { content: string } }> };
         sourceContent = extractData.choices[0]?.message?.content || '';
 
         if (!sourceContent) {
