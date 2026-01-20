@@ -316,25 +316,42 @@ FORMATTING RULES:
       }
 
       // Extract using regex for various formats (quoted or unquoted values)
-      // Match: "japanese": "value" OR japanese: value
-      const japaneseMatch = content.match(/["']?japanese["']?\s*:\s*["']?([\s\S]*?)["']?\s*,\s*["']?english["']?/i) ||
-                           content.match(/["']?japanese["']?\s*:\s*["']([^"']+)["']/i);
-
-      const englishMatch = content.match(/["']?english["']?\s*:\s*["']?([\s\S]*?)["']?\s*\}?$/i) ||
-                          content.match(/["']?english["']?\s*:\s*["']([^"']+)["']/i);
-
+      // Match: "japanese": "value" - handles multiline content with [\s\S] instead of /s flag
+      const japaneseMatch = content.match(/"japanese"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/);
       if (japaneseMatch) {
-        let jpText = japaneseMatch[1].trim();
-        let enText = englishMatch ? englishMatch[1].trim() : '';
+        // Unescape the JSON string
+        let jpText = japaneseMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\');
 
-        // Clean up any trailing punctuation or brackets from regex capture
-        jpText = jpText.replace(/[,\}]$/, '').trim();
-        enText = enText.replace(/[\}]$/, '').trim();
+        const englishMatch = content.match(/"english"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/);
+
+        let enText = englishMatch
+          ? englishMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+          : '';
 
         return { japanese: jpText, english: enText };
       }
 
+      // Last fallback: try to extract content between "japanese": " and the next quote
+      // This handles truncated responses
+      const truncatedMatch = content.match(/"japanese"\s*:\s*"([^"]*)/);
+      if (truncatedMatch) {
+        return { japanese: truncatedMatch[1], english: '' };
+      }
+
       return null;
+    };
+
+    // Clean any JSON artifacts from the content if parsing completely failed
+    const cleanJsonArtifacts = (content: string): string => {
+      // Remove JSON structure artifacts like { "japanese": "
+      return content
+        .replace(/^\s*\{\s*["']?japanese["']?\s*:\s*["']?/i, '')
+        .replace(/["']?\s*,\s*["']?english["']?\s*:\s*["']?[\s\S]*$/i, '')
+        .replace(/["']?\s*\}\s*$/i, '')
+        .trim();
     };
 
     const extracted = extractFields(rawContent);
@@ -342,8 +359,8 @@ FORMATTING RULES:
       japanese = extracted.japanese;
       english = extracted.english || 'Translation not available';
     } else {
-      // Last resort: treat the whole response as Japanese
-      japanese = rawContent;
+      // Last resort: clean any JSON artifacts and use the content
+      japanese = cleanJsonArtifacts(rawContent);
       english = 'Translation not available';
     }
 
