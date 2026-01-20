@@ -27,6 +27,8 @@ export default function Home() {
   const [englishTranslation, setEnglishTranslation] = useState('');
   const [newsContent, setNewsContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<'source' | 'translate'>('source');
   const [unknownKanji, setUnknownKanji] = useState<string[]>([]);
   const [kanjiInfo, setKanjiInfo] = useState<KanjiInfo[]>([]);
   const [isLoadingKanji, setIsLoadingKanji] = useState(false);
@@ -81,49 +83,117 @@ export default function Home() {
 
     setIsLoading(true);
     setError(''); // Clear previous errors
+    setGeneratedContent(''); // Clear previous content
+    setEnglishTranslation('');
+    setNewsContent('');
+
     try {
-      const requestBody: Record<string, unknown> = {
-        inputMode,
-        vocabList,
-      };
+      // For topic and url modes, use two-stage process
+      if (inputMode === 'topic' || inputMode === 'url') {
+        // Stage 1: Fetch source content
+        setLoadingStage('source');
 
-      // Add the appropriate input based on mode
-      if (inputMode === 'topic') {
-        requestBody.topic = topic;
-      } else if (inputMode === 'url') {
-        requestBody.url = urlInput;
-      } else if (inputMode === 'text') {
-        requestBody.text = textInput;
+        const sourceRequestBody: Record<string, unknown> = {
+          inputMode,
+        };
+
+        if (inputMode === 'topic') {
+          sourceRequestBody.topic = topic;
+        } else {
+          sourceRequestBody.url = urlInput;
+        }
+
+        const sourceResponse = await fetch('/api/source', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sourceRequestBody),
+        });
+
+        const sourceData = await sourceResponse.json();
+
+        if (!sourceResponse.ok) {
+          setError(sourceData.error || 'Failed to fetch source content. Please try again.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (!sourceData.sourceContent || sourceData.sourceContent.trim().length === 0) {
+          setError('No content was found. Please try a different topic or URL.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Display the source content immediately
+        setNewsContent(sourceData.sourceContent);
+        setIsLoading(false);
+
+        // Stage 2: Translate to Japanese
+        setIsTranslating(true);
+        setLoadingStage('translate');
+
+        const translateResponse = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            inputMode: 'text',
+            text: sourceData.sourceContent,
+            vocabList,
+          }),
+        });
+
+        const translateData = await translateResponse.json();
+
+        if (!translateResponse.ok) {
+          setError(translateData.error || 'Failed to translate content. Please try again.');
+          setIsTranslating(false);
+          return;
+        }
+
+        if (!translateData.japanese || translateData.japanese.trim().length === 0) {
+          setError('Translation failed. Please try again.');
+          setIsTranslating(false);
+          return;
+        }
+
+        setGeneratedContent(translateData.japanese || '');
+        setEnglishTranslation(translateData.english || '');
+        setIsTranslating(false);
+      } else {
+        // For text mode, use single-stage process (same as before)
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            inputMode,
+            text: textInput,
+            vocabList,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || 'Failed to generate content. Please try again.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (!data.japanese || data.japanese.trim().length === 0) {
+          setError('No content was generated. Please try again or try a different source.');
+          setIsLoading(false);
+          return;
+        }
+
+        setGeneratedContent(data.japanese || '');
+        setEnglishTranslation(data.english || '');
+        setNewsContent(data.sourceContent || textInput);
+        setIsLoading(false);
       }
-
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Handle API errors
-        setError(data.error || 'Failed to generate content. Please try again.');
-        return;
-      }
-
-      // Validate that we received content
-      if (!data.japanese || data.japanese.trim().length === 0) {
-        setError('No content was generated. Please try again or try a different source.');
-        return;
-      }
-
-      setGeneratedContent(data.japanese || '');
-      setEnglishTranslation(data.english || '');
-      setNewsContent(data.newsContent || data.sourceContent || '');
     } catch (error) {
       console.error('Error generating content:', error);
       setError('Network error. Please check your connection and try again.');
-    } finally {
       setIsLoading(false);
+      setIsTranslating(false);
     }
   };
 
@@ -470,17 +540,20 @@ export default function Home() {
           </Alert>
         )}
 
-        {/* Loading Indicator */}
+        {/* Loading Indicator - Stage 1: Fetching source */}
         {isLoading && (
           <Card className="mb-6">
             <div className="flex flex-col items-center justify-center gap-4 py-8">
               <Spinner size="lg" />
               <div className="text-center">
-                <p className="text-muted-foreground text-sm mb-1">Generating your Japanese content...</p>
-                <p className="text-muted-foreground text-xs">
-                  {inputMode === 'topic' && 'Step 1: Searching the web • Step 2: Translating to Japanese'}
-                  {inputMode === 'url' && 'Step 1: Fetching webpage • Step 2: Summarizing in Japanese'}
+                <p className="text-muted-foreground text-sm mb-1">
+                  {inputMode === 'topic' && 'Searching the web...'}
+                  {inputMode === 'url' && 'Fetching webpage content...'}
                   {inputMode === 'text' && 'Converting your text to Japanese...'}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {(inputMode === 'topic' || inputMode === 'url') && 'Step 1 of 2: Getting English content'}
+                  {inputMode === 'text' && 'This may take a moment...'}
                 </p>
               </div>
             </div>
@@ -488,7 +561,7 @@ export default function Home() {
         )}
 
         {/* Generated Content Section - Main reading area */}
-        {generatedContent && !isLoading && (
+        {(newsContent || generatedContent) && !isLoading && (
           <div className="space-y-6">
             {/* Source Content - Shows original English content */}
             {newsContent && (
@@ -507,20 +580,33 @@ export default function Home() {
             )}
 
             {/* Japanese Content - Primary reading surface */}
-            <Card variant="reader">
-              <div className="flex justify-between items-center mb-5">
-                <CardTitle>Japanese Content</CardTitle>
-                <span className="text-xs text-muted-foreground">
-                  <span className="font-bold text-primary">Bold</span> = New kanji (hover for info)
-                </span>
-              </div>
-              <ReaderSurface variant="japanese">
-                {highlightText(generatedContent)}
-              </ReaderSurface>
-            </Card>
+            {isTranslating ? (
+              <Card variant="reader">
+                <CardTitle className="mb-5">Japanese Content</CardTitle>
+                <div className="flex flex-col items-center justify-center gap-4 py-8">
+                  <Spinner size="lg" />
+                  <div className="text-center">
+                    <p className="text-muted-foreground text-sm mb-1">Translating to Japanese...</p>
+                    <p className="text-muted-foreground text-xs">Step 2 of 2: Adapting to your vocabulary</p>
+                  </div>
+                </div>
+              </Card>
+            ) : generatedContent && (
+              <Card variant="reader">
+                <div className="flex justify-between items-center mb-5">
+                  <CardTitle>Japanese Content</CardTitle>
+                  <span className="text-xs text-muted-foreground">
+                    <span className="font-bold text-primary">Bold</span> = New kanji (hover for info)
+                  </span>
+                </div>
+                <ReaderSurface variant="japanese">
+                  {highlightText(generatedContent)}
+                </ReaderSurface>
+              </Card>
+            )}
 
             {/* English Translation - Secondary, quieter */}
-            {englishTranslation && (
+            {englishTranslation && !isTranslating && (
               <Card variant="reader">
                 <CardTitle className="mb-4 text-muted-foreground">English Translation</CardTitle>
                 <ReaderSurface variant="english">
@@ -534,7 +620,7 @@ export default function Home() {
         )}
 
         {/* New Kanji Vocabulary Panel */}
-        {generatedContent && !isLoading && unknownKanji.length > 0 && (
+        {generatedContent && !isLoading && !isTranslating && unknownKanji.length > 0 && (
           <Card className="mt-6">
             <CardTitle className="mb-5">
               New Kanji ({unknownKanji.length})
