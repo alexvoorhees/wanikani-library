@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { ReaderSurface } from '@/components/ui/reader-surface';
 import { Spinner } from '@/components/ui/spinner';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X, Search, Link, FileText } from 'lucide-react';
 
 interface KanjiInfo {
   character: string;
@@ -15,9 +15,14 @@ interface KanjiInfo {
   readings: string[];
 }
 
+type InputMode = 'topic' | 'url' | 'text';
+
 export default function Home() {
   const [vocabList, setVocabList] = useState<string[]>([]);
+  const [inputMode, setInputMode] = useState<InputMode>('topic');
   const [topic, setTopic] = useState('');
+  const [urlInput, setUrlInput] = useState('');
+  const [textInput, setTextInput] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
   const [newsContent, setNewsContent] = useState('');
@@ -26,6 +31,8 @@ export default function Home() {
   const [kanjiInfo, setKanjiInfo] = useState<KanjiInfo[]>([]);
   const [isLoadingKanji, setIsLoadingKanji] = useState(false);
   const [error, setError] = useState<string>('');
+
+  const TEXT_INPUT_LIMIT = 10000;
 
   // Load vocab list from localStorage on mount
   useEffect(() => {
@@ -53,18 +60,46 @@ export default function Home() {
 
   // Generate content
   const handleGenerate = async () => {
-    if (!topic || vocabList.length === 0) {
-      setError('Please upload a vocabulary file and enter a topic!');
+    if (vocabList.length === 0) {
+      setError('Please upload a vocabulary file first!');
+      return;
+    }
+
+    // Validate based on input mode
+    if (inputMode === 'topic' && !topic.trim()) {
+      setError('Please enter a topic to search for!');
+      return;
+    }
+    if (inputMode === 'url' && !urlInput.trim()) {
+      setError('Please enter a URL to analyze!');
+      return;
+    }
+    if (inputMode === 'text' && !textInput.trim()) {
+      setError('Please enter some English text to convert!');
       return;
     }
 
     setIsLoading(true);
     setError(''); // Clear previous errors
     try {
+      const requestBody: Record<string, unknown> = {
+        inputMode,
+        vocabList,
+      };
+
+      // Add the appropriate input based on mode
+      if (inputMode === 'topic') {
+        requestBody.topic = topic;
+      } else if (inputMode === 'url') {
+        requestBody.url = urlInput;
+      } else if (inputMode === 'text') {
+        requestBody.text = textInput;
+      }
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, vocabList }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -77,7 +112,7 @@ export default function Home() {
 
       setGeneratedContent(data.japanese || '');
       setEnglishTranslation(data.english || '');
-      setNewsContent(data.newsContent || '');
+      setNewsContent(data.newsContent || data.sourceContent || '');
     } catch (error) {
       console.error('Error generating content:', error);
       setError('Network error. Please check your connection and try again.');
@@ -262,33 +297,134 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* Topic Input Section */}
+          {/* Content Input Section */}
           <Card variant="setup">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Step 2</span>
             </div>
-            <CardTitle className="mb-4">What would you like to read about?</CardTitle>
+            <CardTitle className="mb-4">Choose your content source</CardTitle>
             <CardContent>
-              <div className="flex gap-3">
-                <Input
-                  type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !isLoading && vocabList.length > 0) {
-                      handleGenerate();
-                    }
-                  }}
-                  placeholder="e.g., technology news, Japanese culture, sports..."
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleGenerate}
-                  disabled={isLoading || vocabList.length === 0}
+              {/* Mode Selector */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setInputMode('topic')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    inputMode === 'topic'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                  }`}
                 >
-                  {isLoading ? 'Generating...' : 'Generate'}
-                </Button>
+                  <Search className="h-4 w-4" />
+                  Web Search
+                </button>
+                <button
+                  onClick={() => setInputMode('url')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    inputMode === 'url'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                  }`}
+                >
+                  <Link className="h-4 w-4" />
+                  URL
+                </button>
+                <button
+                  onClick={() => setInputMode('text')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    inputMode === 'text'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                  }`}
+                >
+                  <FileText className="h-4 w-4" />
+                  Paste Text
+                </button>
               </div>
+
+              {/* Topic Search Input */}
+              {inputMode === 'topic' && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Search the web for news about a topic
+                  </p>
+                  <div className="flex gap-3">
+                    <Input
+                      type="text"
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !isLoading && vocabList.length > 0) {
+                          handleGenerate();
+                        }
+                      }}
+                      placeholder="e.g., technology news, Japanese culture, sports..."
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleGenerate}
+                      disabled={isLoading || vocabList.length === 0}
+                    >
+                      {isLoading ? 'Generating...' : 'Generate'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* URL Input */}
+              {inputMode === 'url' && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Paste a URL to an English webpage to summarize in Japanese
+                  </p>
+                  <div className="flex gap-3">
+                    <Input
+                      type="url"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !isLoading && vocabList.length > 0) {
+                          handleGenerate();
+                        }
+                      }}
+                      placeholder="https://example.com/article..."
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleGenerate}
+                      disabled={isLoading || vocabList.length === 0}
+                    >
+                      {isLoading ? 'Generating...' : 'Generate'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Direct Text Input */}
+              {inputMode === 'text' && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">
+                      Paste or type English text to convert to Japanese
+                    </p>
+                    <span className={`text-xs ${textInput.length > TEXT_INPUT_LIMIT ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {textInput.length.toLocaleString()} / {TEXT_INPUT_LIMIT.toLocaleString()}
+                    </span>
+                  </div>
+                  <textarea
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value.slice(0, TEXT_INPUT_LIMIT))}
+                    placeholder="Paste or type your English text here..."
+                    className="w-full min-h-[150px] px-3 py-2 border border-border rounded-md bg-background text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                  />
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={isLoading || vocabList.length === 0 || textInput.length === 0}
+                    className="w-full"
+                  >
+                    {isLoading ? 'Generating...' : 'Convert to Japanese'}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -335,7 +471,11 @@ export default function Home() {
               <Spinner size="lg" />
               <div className="text-center">
                 <p className="text-muted-foreground text-sm mb-1">Generating your Japanese content...</p>
-                <p className="text-muted-foreground text-xs">Step 1: Gathering news • Step 2: Translating to Japanese</p>
+                <p className="text-muted-foreground text-xs">
+                  {inputMode === 'topic' && 'Step 1: Searching the web • Step 2: Translating to Japanese'}
+                  {inputMode === 'url' && 'Step 1: Fetching webpage • Step 2: Summarizing in Japanese'}
+                  {inputMode === 'text' && 'Converting your text to Japanese...'}
+                </p>
               </div>
             </div>
           </Card>
@@ -344,10 +484,14 @@ export default function Home() {
         {/* Generated Content Section - Main reading area */}
         {generatedContent && !isLoading && (
           <div className="space-y-6">
-            {/* News Source Content - Shows original English news */}
+            {/* Source Content - Shows original English content */}
             {newsContent && (
               <Card variant="reader">
-                <CardTitle className="mb-4 text-muted-foreground">Source News (English)</CardTitle>
+                <CardTitle className="mb-4 text-muted-foreground">
+                  {inputMode === 'topic' && 'Source News (English)'}
+                  {inputMode === 'url' && 'Source Webpage (English)'}
+                  {inputMode === 'text' && 'Original Text (English)'}
+                </CardTitle>
                 <ReaderSurface variant="english">
                   <p className="text-foreground/70 leading-relaxed whitespace-pre-wrap text-sm">
                     {newsContent}
