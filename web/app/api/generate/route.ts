@@ -40,7 +40,7 @@ Output just the summary text, no formatting or extra commentary.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b', // Smaller model for news gathering
+        model: 'qwen3-4b', // Venice Small - fast model for news gathering
         messages: [
           {
             role: 'user',
@@ -122,7 +122,7 @@ FORMATTING RULES:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b', // Larger model for constrained translation
+        model: 'qwen3-235b', // Venice Large - powerful model for constrained translation
         messages: [
           {
             role: 'user',
