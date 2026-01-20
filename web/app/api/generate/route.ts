@@ -339,7 +339,10 @@ FORMATTING RULES:
     }
 
     const data = translationResult.data as { choices: Array<{ message: { content: string } }> };
-    const rawContent = data.choices[0]?.message?.content || '';
+    let rawContent = data.choices[0]?.message?.content || '';
+
+    // Strip out any <think>...</think> tags that Qwen3 might include despite disable_thinking
+    rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
     // Parse the JSON response from the model
     let japanese = '';

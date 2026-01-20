@@ -154,6 +154,9 @@ Output just the summary text, no formatting or extra commentary.`;
       const newsData = result.data as { choices: Array<{ message: { content: string } }> };
       sourceContent = newsData.choices[0]?.message?.content || '';
 
+      // Strip out any <think>...</think> tags that Qwen3 might include
+      sourceContent = sourceContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
       if (!sourceContent) {
         return NextResponse.json(
           { error: 'No news content retrieved' },
@@ -244,6 +247,9 @@ Output just the summary text, no formatting or extra commentary.`;
 
         const extractData = result.data as { choices: Array<{ message: { content: string } }> };
         sourceContent = extractData.choices[0]?.message?.content || '';
+
+        // Strip out any <think>...</think> tags that Qwen3 might include
+        sourceContent = sourceContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
         if (!sourceContent) {
           return NextResponse.json(
