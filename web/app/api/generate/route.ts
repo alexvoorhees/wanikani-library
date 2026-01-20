@@ -279,9 +279,9 @@ FORMATTING RULES:
 }`;
 
     // Call Venice.ai API for translation with retry logic
-    // Using qwen3-30b-a3b for faster response (good balance of speed and quality)
+    // Using qwen3-4b for faster response (same model as source fetching)
     const translationResult = await callVeniceWithRetry(apiKey, {
-      model: 'qwen3-30b-a3b', // Faster model for translation
+      model: 'qwen3-4b', // Fast model - same as source fetching
       messages: [
         {
           role: 'user',
