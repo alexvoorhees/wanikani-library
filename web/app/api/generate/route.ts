@@ -19,12 +19,72 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Include the full vocabulary list for accurate content generation
-    // LLMs like Llama 3.3 70B have 128K context - 2000+ Japanese words (~3K tokens) fits easily
+    // STEP 1: News Gathering
+    // Use smaller, faster model to search and summarize news in English
+    const newsPrompt = `You are a news researcher. Search for recent news about the following topic and provide a clear, concise summary in English.
+
+TOPIC: ${topic}
+
+TASK:
+1. Search for current news about this topic
+2. Write 1-2 short paragraphs summarizing the most relevant and recent information
+3. Keep it simple and factual
+4. Write in English only
+
+Output just the summary text, no formatting or extra commentary.`;
+
+    const newsResponse = await fetch('https://api.venice.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b', // Smaller model for news gathering
+        messages: [
+          {
+            role: 'user',
+            content: newsPrompt,
+          },
+        ],
+        temperature: 0.5,
+        max_tokens: 800,
+        venice_parameters: {
+          enable_web_search: 'auto', // Enable web search for current news
+          enable_web_citations: false,
+          return_search_results_as_documents: false,
+        },
+      }),
+    });
+
+    if (!newsResponse.ok) {
+      const errorText = await newsResponse.text();
+      console.error('Venice API error (news gathering):', newsResponse.status, errorText);
+      return NextResponse.json(
+        {
+          error: `Failed to gather news: ${newsResponse.status}`,
+          errorType: 'API_ERROR'
+        },
+        { status: newsResponse.status }
+      );
+    }
+
+    const newsData = await newsResponse.json();
+    const newsContent = newsData.choices[0]?.message?.content || '';
+
+    if (!newsContent) {
+      return NextResponse.json(
+        { error: 'No news content retrieved' },
+        { status: 500 }
+      );
+    }
+
+    // STEP 2: Translation with Vocabulary Constraints
+    // Use larger model to translate English news to simple Japanese using known vocabulary
     const fullVocabList = vocabList.join(', ');
     const totalVocabCount = vocabList.length;
 
-    const prompt = `You are a Japanese language content generator helping a learner practice reading.
+    const translationPrompt = `You are a Japanese language translator specializing in creating learner-friendly content.
 
 VOCABULARY CONSTRAINT (HIGHEST PRIORITY - YOU MUST FOLLOW THIS):
 - Use ONLY kanji/words from the user's vocabulary list below
@@ -36,11 +96,14 @@ VOCABULARY CONSTRAINT (HIGHEST PRIORITY - YOU MUST FOLLOW THIS):
 The user knows ${totalVocabCount} words. Here is their COMPLETE vocabulary list:
 ${fullVocabList}
 
-CONTENT TASK:
-1. Search for recent news about: ${topic}
-2. Write 1-2 short paragraphs summarizing it in simple Japanese
+CONTENT TO TRANSLATE:
+${newsContent}
+
+TASK:
+1. Translate the above English text into simple Japanese
+2. Use ONLY vocabulary from the user's known words list (+ max 2-3 new kanji)
 3. Use simple grammar structures appropriate for a learner
-4. When unsure if a word is known, use hiragana or a simpler alternative
+4. When a word is not in the vocabulary list, use hiragana or find a simpler alternative
 
 FORMATTING RULES:
 1. Add spaces between words/particles (e.g., "今日 は 天気 が いい です")
@@ -48,10 +111,10 @@ FORMATTING RULES:
 3. Output as JSON:
 {
   "japanese": "Your Japanese text with spaces between words",
-  "english": "English translation"
+  "english": "The original English content"
 }`;
 
-    // Call Venice.ai API
+    // Call Venice.ai API for translation
     const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -59,26 +122,21 @@ FORMATTING RULES:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b', // Using a capable open-source model
+        model: 'llama-3.3-70b', // Larger model for constrained translation
         messages: [
           {
             role: 'user',
-            content: prompt,
+            content: translationPrompt,
           },
         ],
         temperature: 0.3, // Lower temperature for stricter vocabulary adherence
         max_tokens: 1500,
-        venice_parameters: {
-          enable_web_search: 'auto', // Enable real-time web search for current news
-          enable_web_citations: false, // Disable inline citations
-          return_search_results_as_documents: false,
-        },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Venice API error:', response.status, errorText);
+      console.error('Venice API error (translation):', response.status, errorText);
 
       // Handle specific error cases
       if (response.status === 429) {
