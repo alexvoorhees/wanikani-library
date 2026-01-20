@@ -231,7 +231,8 @@ FORMATTING RULES:
 
     return NextResponse.json({
       japanese,
-      english
+      english,
+      newsContent // Include the original English news for display
     });
   } catch (error) {
     console.error('Error in generate API:', error);
