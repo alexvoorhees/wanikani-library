@@ -428,7 +428,7 @@ export default function Home() {
             variant="ghost"
             size="sm"
             onClick={() => setShowWanikaniModal(true)}
-            className="mt-4 text-muted-foreground hover:text-primary"
+            className="mt-4 text-muted-foreground hover:text-primary hover:bg-primary/10 hover:scale-105 transition-all duration-200"
           >
             <Download className="h-4 w-4 mr-2" />
             Download WaniKani Kanji
@@ -437,8 +437,11 @@ export default function Home() {
 
         {/* WaniKani Kanji Export Modal */}
         {showWanikaniModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-md relative bg-background">
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowWanikaniModal(false)}
+          >
+            <Card className="w-full max-w-md relative bg-white" onClick={(e) => e.stopPropagation()}>
               <Button
                 variant="ghost"
                 size="icon"
@@ -573,10 +576,10 @@ export default function Home() {
               <div className="flex gap-2 mb-4 p-1 bg-muted/50 rounded-lg w-fit">
                 <button
                   onClick={() => setInputMode('topic')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     inputMode === 'topic'
                       ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'bg-transparent hover:bg-muted text-muted-foreground'
+                      : 'bg-transparent hover:bg-primary/15 hover:text-primary hover:shadow-sm text-muted-foreground'
                   }`}
                 >
                   <Search className="h-4 w-4" />
@@ -584,10 +587,10 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setInputMode('url')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     inputMode === 'url'
                       ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'bg-transparent hover:bg-muted text-muted-foreground'
+                      : 'bg-transparent hover:bg-primary/15 hover:text-primary hover:shadow-sm text-muted-foreground'
                   }`}
                 >
                   <Link className="h-4 w-4" />
@@ -595,10 +598,10 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setInputMode('text')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                     inputMode === 'text'
                       ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'bg-transparent hover:bg-muted text-muted-foreground'
+                      : 'bg-transparent hover:bg-primary/15 hover:text-primary hover:shadow-sm text-muted-foreground'
                   }`}
                 >
                   <FileText className="h-4 w-4" />
