@@ -53,11 +53,11 @@ async function callVeniceWithRetry(
 
 export async function POST(request: NextRequest) {
   try {
-    const { inputMode = 'topic', topic, url, text, vocabList } = await request.json();
+    const { inputMode = 'topic', topic, url, text, knownKanji } = await request.json();
 
-    if (!vocabList || vocabList.length === 0) {
+    if (!knownKanji || knownKanji.length === 0) {
       return NextResponse.json(
-        { error: 'Vocabulary list is required' },
+        { error: 'Known kanji list is required' },
         { status: 400 }
       );
     }
@@ -247,31 +247,26 @@ Output just the summary text, no formatting or extra commentary.
       sourceContent = text.slice(0, 10000); // Enforce character limit
     }
 
-    // STEP 2: Translation with Vocabulary Constraints
-    // Use larger model to translate English content to simple Japanese using known vocabulary
-    const fullVocabList = vocabList.join(', ');
-    const totalVocabCount = vocabList.length;
-
+    // STEP 2: Translation with Kanji Constraints
+    // knownKanji is a string of unique kanji characters the user knows (sent from frontend)
     const translationPrompt = `You are a Japanese language translator specializing in creating learner-friendly content.
 
-VOCABULARY CONSTRAINT (HIGHEST PRIORITY - YOU MUST FOLLOW THIS):
-- Use ONLY kanji/words from the user's vocabulary list below
+KANJI CONSTRAINT (HIGHEST PRIORITY - YOU MUST FOLLOW THIS):
+- The user knows these ${knownKanji.length} kanji characters: ${knownKanji}
+- Use ONLY kanji from this list in your translation
 - You may introduce AT MOST 2-3 new kanji that are NOT in their list
-- For ANY other words not in their vocabulary, write them in HIRAGANA instead of kanji
+- For ANY word containing unknown kanji, write it in HIRAGANA instead
 - Grammar particles (は, が, を, に, で, と, も, か, ね, よ, etc.) are always allowed
-- This constraint is CRITICAL - using too many unknown kanji ruins the learning experience
-
-The user knows ${totalVocabCount} words. Here is their COMPLETE vocabulary list:
-${fullVocabList}
+- This constraint is CRITICAL - using unknown kanji ruins the learning experience
 
 CONTENT TO TRANSLATE:
 ${sourceContent}
 
 TASK:
 1. Translate the above English text into simple Japanese
-2. Use ONLY vocabulary from the user's known words list (+ max 2-3 new kanji)
+2. Use ONLY kanji from the user's known kanji list (+ max 2-3 new kanji)
 3. Use simple grammar structures appropriate for a learner
-4. When a word is not in the vocabulary list, use hiragana or find a simpler alternative
+4. When a word contains unknown kanji, write it in hiragana instead
 
 FORMATTING RULES:
 1. Add spaces between words/particles (e.g., "今日 は 天気 が いい です")
