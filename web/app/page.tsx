@@ -39,6 +39,7 @@ export default function Home() {
   const [isLoadingWanikani, setIsLoadingWanikani] = useState(false);
   const [wanikaniError, setWanikaniError] = useState<string>('');
   const [wanikaniSuccess, setWanikaniSuccess] = useState<string>('');
+  const [showWanikaniModal, setShowWanikaniModal] = useState(false);
 
   const TEXT_INPUT_LIMIT = 10000;
 
@@ -423,98 +424,119 @@ export default function Home() {
             Generate readable Japanese content using your vocabulary
           </p>
           <div className="rule-japanese mt-8 mx-auto max-w-xs" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowWanikaniModal(true)}
+            className="mt-4 text-muted-foreground hover:text-primary"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download WaniKani Kanji
+          </Button>
         </header>
 
-        {/* WaniKani Kanji Export Tool */}
-        <Card variant="setup" className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Key className="h-4 w-4 text-primary" />
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">WaniKani Sync</span>
-          </div>
-          <CardTitle className="mb-2">Export Your Known Kanji</CardTitle>
-          <p className="text-sm text-muted-foreground mb-4">
-            Connect to WaniKani to download a text file of all kanji you know at Guru level or above.
-          </p>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex gap-3">
-                <Input
-                  type="password"
-                  value={wanikaniApiKey}
-                  onChange={(e) => setWanikaniApiKey(e.target.value)}
-                  placeholder="Enter your WaniKani API key (v2)"
-                  className="flex-1"
-                />
+        {/* WaniKani Kanji Export Modal */}
+        {showWanikaniModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-md relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowWanikaniModal(false)}
+                className="absolute top-3 right-3 h-8 w-8"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-2 mb-3">
+                <Key className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">WaniKani Sync</span>
               </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  onClick={() => handleWanikaniExport(true)}
-                  disabled={isLoadingWanikani || !wanikaniApiKey.trim()}
-                  variant="default"
-                  size="sm"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {isLoadingWanikani ? 'Fetching...' : 'Download Kanji File'}
-                </Button>
-                <Button
-                  onClick={() => handleWanikaniExport(false)}
-                  disabled={isLoadingWanikani || !wanikaniApiKey.trim()}
-                  variant="secondary"
-                  size="sm"
-                >
-                  {isLoadingWanikani ? 'Fetching...' : 'Use Directly in App'}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Get your API key from{' '}
-                <a
-                  href="https://www.wanikani.com/settings/personal_access_tokens"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline hover:no-underline"
-                >
-                  WaniKani Settings → API Tokens
-                </a>
-                . Your key is never stored.
+              <CardTitle className="mb-2">Export Your Known Kanji</CardTitle>
+              <p className="text-sm text-muted-foreground mb-4">
+                Connect to WaniKani to download a text file of all kanji you know at Guru level or above.
               </p>
-
-              {/* Error Display */}
-              {wanikaniError && (
-                <Alert variant="destructive" className="mt-3">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                    <AlertDescription>{wanikaniError}</AlertDescription>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex gap-3">
+                    <Input
+                      type="password"
+                      value={wanikaniApiKey}
+                      onChange={(e) => setWanikaniApiKey(e.target.value)}
+                      placeholder="Enter your WaniKani API key (v2)"
+                      className="flex-1"
+                    />
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setWanikaniError('')}
-                      className="ml-auto h-6 w-6 text-destructive hover:text-destructive/80"
+                      onClick={() => handleWanikaniExport(true)}
+                      disabled={isLoadingWanikani || !wanikaniApiKey.trim()}
+                      variant="default"
+                      size="sm"
                     >
-                      <X className="h-3 w-3" />
+                      <Download className="h-4 w-4 mr-2" />
+                      {isLoadingWanikani ? 'Fetching...' : 'Download Kanji File'}
+                    </Button>
+                    <Button
+                      onClick={() => handleWanikaniExport(false)}
+                      disabled={isLoadingWanikani || !wanikaniApiKey.trim()}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      {isLoadingWanikani ? 'Fetching...' : 'Use Directly in App'}
                     </Button>
                   </div>
-                </Alert>
-              )}
-
-              {/* Success Display */}
-              {wanikaniSuccess && (
-                <Alert variant="info" className="mt-3">
-                  <div className="flex items-center gap-2">
-                    <AlertDescription>{wanikaniSuccess}</AlertDescription>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setWanikaniSuccess('')}
-                      className="ml-auto h-6 w-6"
+                  <p className="text-xs text-muted-foreground">
+                    Get your API key from{' '}
+                    <a
+                      href="https://www.wanikani.com/settings/personal_access_tokens"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline hover:no-underline"
                     >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </Alert>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                      WaniKani Settings → API Tokens
+                    </a>
+                    . Your key is never stored.
+                  </p>
+
+                  {/* Error Display */}
+                  {wanikaniError && (
+                    <Alert variant="destructive" className="mt-3">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                        <AlertDescription>{wanikaniError}</AlertDescription>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setWanikaniError('')}
+                          className="ml-auto h-6 w-6 text-destructive hover:text-destructive/80"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </Alert>
+                  )}
+
+                  {/* Success Display */}
+                  {wanikaniSuccess && (
+                    <Alert variant="info" className="mt-3">
+                      <div className="flex items-center gap-2">
+                        <AlertDescription>{wanikaniSuccess}</AlertDescription>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setWanikaniSuccess('')}
+                          className="ml-auto h-6 w-6"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </Alert>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Setup Section - lighter visual weight */}
         <div className="space-y-4 mb-10">
@@ -533,7 +555,7 @@ export default function Home() {
                 />
                 {vocabList.length > 0 && (
                   <span className="text-sm text-primary font-medium whitespace-nowrap">
-                    {vocabList.length} words loaded
+                    {extractKanjiFromVocab(vocabList).length} kanji loaded
                   </span>
                 )}
               </div>
@@ -728,19 +750,15 @@ export default function Home() {
         )}
 
         {/* Generated Content Section - Main reading area */}
-        {(newsContent || generatedContent) && !isLoading && (
+        {(englishTranslation || generatedContent || isTranslating) && !isLoading && (
           <div className="space-y-6">
-            {/* Source Content - Shows original English content */}
-            {newsContent && (
+            {/* English Content - Shows after translation is complete */}
+            {englishTranslation && !isTranslating && (
               <Card variant="reader">
-                <CardTitle className="mb-4 text-muted-foreground">
-                  {inputMode === 'topic' && 'Source News (English)'}
-                  {inputMode === 'url' && 'Source Webpage (English)'}
-                  {inputMode === 'text' && 'Original Text (English)'}
-                </CardTitle>
+                <CardTitle className="mb-4 text-muted-foreground">English</CardTitle>
                 <ReaderSurface variant="english">
-                  <p className="text-foreground/70 leading-relaxed whitespace-pre-wrap text-sm">
-                    {newsContent}
+                  <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                    {englishTranslation}
                   </p>
                 </ReaderSurface>
               </Card>
@@ -749,7 +767,7 @@ export default function Home() {
             {/* Japanese Content - Primary reading surface */}
             {isTranslating ? (
               <Card variant="reader">
-                <CardTitle className="mb-5">Japanese Content</CardTitle>
+                <CardTitle className="mb-5">Japanese</CardTitle>
                 <div className="flex flex-col items-center justify-center gap-4 py-8">
                   <Spinner size="lg" />
                   <div className="text-center">
@@ -761,25 +779,13 @@ export default function Home() {
             ) : generatedContent && (
               <Card variant="reader">
                 <div className="flex justify-between items-center mb-5">
-                  <CardTitle>Japanese Content</CardTitle>
+                  <CardTitle>Japanese</CardTitle>
                   <span className="text-xs text-muted-foreground">
                     <span className="font-bold text-primary">Bold</span> = New kanji (hover for info)
                   </span>
                 </div>
                 <ReaderSurface variant="japanese">
                   {highlightText(generatedContent)}
-                </ReaderSurface>
-              </Card>
-            )}
-
-            {/* English Translation - Secondary, quieter */}
-            {englishTranslation && !isTranslating && (
-              <Card variant="reader">
-                <CardTitle className="mb-4 text-muted-foreground">English Translation</CardTitle>
-                <ReaderSurface variant="english">
-                  <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">
-                    {englishTranslation}
-                  </p>
                 </ReaderSurface>
               </Card>
             )}
