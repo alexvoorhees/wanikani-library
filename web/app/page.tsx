@@ -438,7 +438,7 @@ export default function Home() {
         {/* WaniKani Kanji Export Modal */}
         {showWanikaniModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-md relative">
+            <Card className="w-full max-w-md relative bg-background">
               <Button
                 variant="ghost"
                 size="icon"
