@@ -53,11 +53,11 @@ async function callVeniceWithRetry(
 
 export async function POST(request: NextRequest) {
   try {
-    const { inputMode = 'topic', topic, url, text, vocabList } = await request.json();
+    const { inputMode = 'topic', topic, url, text, knownKanji } = await request.json();
 
-    if (!vocabList || vocabList.length === 0) {
+    if (!knownKanji || knownKanji.length === 0) {
       return NextResponse.json(
-        { error: 'Vocabulary list is required' },
+        { error: 'Known kanji list is required' },
         { status: 400 }
       );
     }
@@ -247,34 +247,17 @@ Output just the summary text, no formatting or extra commentary.
       sourceContent = text.slice(0, 10000); // Enforce character limit
     }
 
-    // STEP 2: Translation with Vocabulary Constraints
-    // Use larger model to translate English content to simple Japanese using known vocabulary
-    const totalVocabCount = vocabList.length;
-
-    // Extract unique kanji characters from vocabulary - this is much more compact than the full word list
-    // and captures the essential constraint (which kanji the user can read)
-    const kanjiRegex = /[\u4e00-\u9faf\u3400-\u4dbf]/g;
-    const allKanji = vocabList.join('').match(kanjiRegex) || [];
-    const uniqueKanji = [...new Set(allKanji)].sort().join('');
-
-    // Also include a sample of vocabulary words for context (common patterns, readings)
-    const MAX_VOCAB_SAMPLE = 500;
-    const vocabSample = vocabList.length > MAX_VOCAB_SAMPLE
-      ? vocabList.slice(0, MAX_VOCAB_SAMPLE).join(', ')
-      : vocabList.join(', ');
-
+    // STEP 2: Translation with Kanji Constraints
+    // knownKanji is a string of unique kanji characters the user knows (sent from frontend)
     const translationPrompt = `You are a Japanese language translator specializing in creating learner-friendly content.
 
 KANJI CONSTRAINT (HIGHEST PRIORITY - YOU MUST FOLLOW THIS):
-- The user knows these ${uniqueKanji.length} kanji characters: ${uniqueKanji}
+- The user knows these ${knownKanji.length} kanji characters: ${knownKanji}
 - Use ONLY kanji from this list in your translation
 - You may introduce AT MOST 2-3 new kanji that are NOT in their list
 - For ANY word containing unknown kanji, write it in HIRAGANA instead
 - Grammar particles (は, が, を, に, で, と, も, か, ね, よ, etc.) are always allowed
 - This constraint is CRITICAL - using unknown kanji ruins the learning experience
-
-The user knows ${totalVocabCount} vocabulary words. Here is a sample for context:
-${vocabSample}
 
 CONTENT TO TRANSLATE:
 ${sourceContent}

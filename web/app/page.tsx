@@ -36,6 +36,14 @@ export default function Home() {
 
   const TEXT_INPUT_LIMIT = 10000;
 
+  // Extract unique kanji characters from vocabulary list
+  // This is much more compact than sending the full word list to the API
+  const extractKanjiFromVocab = (vocab: string[]): string => {
+    const kanjiRegex = /[\u4e00-\u9faf\u3400-\u4dbf]/g;
+    const allKanji = vocab.join('').match(kanjiRegex) || [];
+    return [...new Set(allKanji)].sort().join('');
+  };
+
   // Load vocab list from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('japaneseVocab');
@@ -137,7 +145,7 @@ export default function Home() {
           body: JSON.stringify({
             inputMode: 'text',
             text: sourceData.sourceContent,
-            vocabList,
+            knownKanji: extractKanjiFromVocab(vocabList),
           }),
         });
 
@@ -166,7 +174,7 @@ export default function Home() {
           body: JSON.stringify({
             inputMode,
             text: textInput,
-            vocabList,
+            knownKanji: extractKanjiFromVocab(vocabList),
           }),
         });
 
