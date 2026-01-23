@@ -19,6 +19,9 @@ type InputMode = 'topic' | 'url' | 'text';
 
 export default function Home() {
   const [vocabList, setVocabList] = useState<string[]>([]);
+  const [wanikaniApiKey, setWanikaniApiKey] = useState('');
+  const [isLoadingWanikani, setIsLoadingWanikani] = useState(false);
+  const [wanikaniProgress, setWanikaniProgress] = useState('');
   const [inputMode, setInputMode] = useState<InputMode>('topic');
   const [topic, setTopic] = useState('');
   const [urlInput, setUrlInput] = useState('');
@@ -44,13 +47,104 @@ export default function Home() {
     return [...new Set(allKanji)].sort().join('');
   };
 
-  // Load vocab list from localStorage on mount
+  // Load vocab list and API key from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('japaneseVocab');
     if (saved) {
       setVocabList(JSON.parse(saved));
     }
+    const savedApiKey = localStorage.getItem('wanikaniApiKey');
+    if (savedApiKey) {
+      setWanikaniApiKey(savedApiKey);
+    }
   }, []);
+
+  // Fetch kanji from WaniKani API (runs entirely in browser - key never sent to server)
+  const fetchFromWanikani = async () => {
+    if (!wanikaniApiKey.trim()) {
+      setError('Please enter your WaniKani API key');
+      return;
+    }
+
+    setIsLoadingWanikani(true);
+    setError('');
+    setWanikaniProgress('Fetching your assignments...');
+
+    try {
+      // Step 1: Fetch all kanji assignments the user has started
+      const assignmentSubjectIds: number[] = [];
+      let nextUrl: string | null = 'https://api.wanikani.com/v2/assignments?subject_types=kanji&started=true';
+
+      while (nextUrl) {
+        const response = await fetch(nextUrl, {
+          headers: { 'Authorization': `Bearer ${wanikaniApiKey}` },
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Invalid API key. Please check your WaniKani API key.');
+          }
+          throw new Error(`WaniKani API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        for (const assignment of data.data) {
+          assignmentSubjectIds.push(assignment.data.subject_id);
+        }
+        nextUrl = data.pages?.next_url || null;
+        setWanikaniProgress(`Found ${assignmentSubjectIds.length} kanji assignments...`);
+      }
+
+      if (assignmentSubjectIds.length === 0) {
+        throw new Error('No kanji found. Have you started learning kanji on WaniKani?');
+      }
+
+      // Step 2: Fetch the actual kanji characters for these subject IDs
+      setWanikaniProgress('Fetching kanji characters...');
+      const allKanji: string[] = [];
+
+      // WaniKani API limits IDs per request, so batch them
+      const batchSize = 1000;
+      for (let i = 0; i < assignmentSubjectIds.length; i += batchSize) {
+        const batch = assignmentSubjectIds.slice(i, i + batchSize);
+        const idsParam = batch.join(',');
+
+        let subjectUrl: string | null = `https://api.wanikani.com/v2/subjects?ids=${idsParam}`;
+
+        while (subjectUrl) {
+          const response = await fetch(subjectUrl, {
+            headers: { 'Authorization': `Bearer ${wanikaniApiKey}` },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch kanji details: ${response.status}`);
+          }
+
+          const data = await response.json();
+          for (const subject of data.data) {
+            if (subject.data.characters) {
+              allKanji.push(subject.data.characters);
+            }
+          }
+          subjectUrl = data.pages?.next_url || null;
+        }
+
+        setWanikaniProgress(`Loaded ${allKanji.length} kanji...`);
+      }
+
+      // Store results
+      setVocabList(allKanji);
+      localStorage.setItem('japaneseVocab', JSON.stringify(allKanji));
+      localStorage.setItem('wanikaniApiKey', wanikaniApiKey);
+      setWanikaniProgress('');
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch from WaniKani');
+      setWanikaniProgress('');
+    } finally {
+      setIsLoadingWanikani(false);
+    }
+  };
 
   // Handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,7 +165,7 @@ export default function Home() {
   // Generate content
   const handleGenerate = async () => {
     if (vocabList.length === 0) {
-      setError('Please upload a vocabulary file first!');
+      setError('Please load your vocabulary first (WaniKani or file upload)');
       return;
     }
 
@@ -359,25 +453,75 @@ export default function Home() {
 
         {/* Setup Section - lighter visual weight */}
         <div className="space-y-4 mb-10">
-          {/* Vocabulary Upload Section */}
+          {/* Vocabulary Setup Section */}
           <Card variant="setup">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Step 1</span>
             </div>
-            <CardTitle className="mb-4">Upload Your Vocabulary</CardTitle>
+            <CardTitle className="mb-4">Load Your Vocabulary</CardTitle>
             <CardContent>
+              {/* WaniKani API Option */}
+              <div className="space-y-3 mb-4">
+                <p className="text-sm text-muted-foreground">
+                  Connect to WaniKani to load your learned kanji
+                </p>
+                <div className="flex gap-3">
+                  <Input
+                    type="password"
+                    value={wanikaniApiKey}
+                    onChange={(e) => setWanikaniApiKey(e.target.value)}
+                    placeholder="WaniKani API Key (v2)"
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={fetchFromWanikani}
+                    disabled={isLoadingWanikani || !wanikaniApiKey.trim()}
+                    variant="secondary"
+                  >
+                    {isLoadingWanikani ? <Spinner className="h-4 w-4" /> : 'Load from WaniKani'}
+                  </Button>
+                </div>
+                {wanikaniProgress && (
+                  <p className="text-xs text-muted-foreground">{wanikaniProgress}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Get your API key from{' '}
+                  <a
+                    href="https://www.wanikani.com/settings/personal_access_tokens"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    WaniKani Settings
+                  </a>
+                  {' '}— your key stays in your browser, never sent to our server.
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4 my-4">
+                <div className="flex-1 border-t border-border" />
+                <span className="text-xs text-muted-foreground">or upload a file</span>
+                <div className="flex-1 border-t border-border" />
+              </div>
+
+              {/* File Upload Option */}
               <div className="flex items-center gap-4">
                 <Input
                   type="file"
                   accept=".txt"
                   onChange={handleFileUpload}
                 />
-                {vocabList.length > 0 && (
-                  <span className="text-sm text-primary font-medium whitespace-nowrap">
-                    {vocabList.length} words loaded
-                  </span>
-                )}
               </div>
+
+              {/* Status */}
+              {vocabList.length > 0 && (
+                <div className="mt-4 p-3 bg-primary/10 rounded-lg">
+                  <span className="text-sm text-primary font-medium">
+                    {extractKanjiFromVocab(vocabList).length} kanji loaded
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -681,7 +825,7 @@ export default function Home() {
         {vocabList.length === 0 && (
           <Alert variant="info" className="text-center">
             <p>
-              Start by uploading your Japanese vocabulary list (comma-separated .txt file)
+              Connect your WaniKani account or upload a vocabulary file to get started
             </p>
           </Alert>
         )}
