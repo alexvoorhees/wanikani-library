@@ -342,7 +342,10 @@ FORMATTING RULES:
     let rawContent = data.choices[0]?.message?.content || '';
 
     // Strip out any <think>...</think> tags that Qwen3 might include despite disable_thinking
+    // First, strip complete think blocks (has both opening and closing tags)
     rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    // Then, handle unclosed <think> tags (truncated responses where max_tokens cut off the closing tag)
+    rawContent = rawContent.replace(/<think>[\s\S]*/gi, '').trim();
 
     // Parse the JSON response from the model
     let japanese = '';
