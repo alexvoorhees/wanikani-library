@@ -155,7 +155,10 @@ Output just the summary text, no formatting or extra commentary.`;
       sourceContent = newsData.choices[0]?.message?.content || '';
 
       // Strip out any <think>...</think> tags that Qwen3 might include
+      // First, strip complete think blocks (has both opening and closing tags)
       sourceContent = sourceContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      // Then, handle unclosed <think> tags (truncated responses)
+      sourceContent = sourceContent.replace(/<think>[\s\S]*/gi, '').trim();
 
       if (!sourceContent) {
         return NextResponse.json(
@@ -249,7 +252,10 @@ Output just the summary text, no formatting or extra commentary.`;
         sourceContent = extractData.choices[0]?.message?.content || '';
 
         // Strip out any <think>...</think> tags that Qwen3 might include
+        // First, strip complete think blocks (has both opening and closing tags)
         sourceContent = sourceContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        // Then, handle unclosed <think> tags (truncated responses)
+        sourceContent = sourceContent.replace(/<think>[\s\S]*/gi, '').trim();
 
         if (!sourceContent) {
           return NextResponse.json(
