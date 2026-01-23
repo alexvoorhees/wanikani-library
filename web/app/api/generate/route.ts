@@ -251,33 +251,39 @@ Output just the summary text, no formatting or extra commentary.
     // Use larger model to translate English content to simple Japanese using known vocabulary
     const totalVocabCount = vocabList.length;
 
-    // Limit vocabulary list to avoid exceeding model's context window (32k tokens)
-    // Each Japanese word averages ~3-4 tokens, so 2000 words ≈ 6-8k tokens (safe margin)
-    const MAX_VOCAB_ITEMS = 2000;
-    const truncatedVocab = vocabList.slice(0, MAX_VOCAB_ITEMS);
-    const vocabListStr = truncatedVocab.join(', ');
-    const isVocabTruncated = vocabList.length > MAX_VOCAB_ITEMS;
+    // Extract unique kanji characters from vocabulary - this is much more compact than the full word list
+    // and captures the essential constraint (which kanji the user can read)
+    const kanjiRegex = /[\u4e00-\u9faf\u3400-\u4dbf]/g;
+    const allKanji = vocabList.join('').match(kanjiRegex) || [];
+    const uniqueKanji = [...new Set(allKanji)].sort().join('');
+
+    // Also include a sample of vocabulary words for context (common patterns, readings)
+    const MAX_VOCAB_SAMPLE = 500;
+    const vocabSample = vocabList.length > MAX_VOCAB_SAMPLE
+      ? vocabList.slice(0, MAX_VOCAB_SAMPLE).join(', ')
+      : vocabList.join(', ');
 
     const translationPrompt = `You are a Japanese language translator specializing in creating learner-friendly content.
 
-VOCABULARY CONSTRAINT (HIGHEST PRIORITY - YOU MUST FOLLOW THIS):
-- Use ONLY kanji/words from the user's vocabulary list below
+KANJI CONSTRAINT (HIGHEST PRIORITY - YOU MUST FOLLOW THIS):
+- The user knows these ${uniqueKanji.length} kanji characters: ${uniqueKanji}
+- Use ONLY kanji from this list in your translation
 - You may introduce AT MOST 2-3 new kanji that are NOT in their list
-- For ANY other words not in their vocabulary, write them in HIRAGANA instead of kanji
+- For ANY word containing unknown kanji, write it in HIRAGANA instead
 - Grammar particles (は, が, を, に, で, と, も, か, ね, よ, etc.) are always allowed
-- This constraint is CRITICAL - using too many unknown kanji ruins the learning experience
+- This constraint is CRITICAL - using unknown kanji ruins the learning experience
 
-The user knows ${totalVocabCount} words.${isVocabTruncated ? ` Here is a sample of ${MAX_VOCAB_ITEMS} words from their vocabulary:` : ' Here is their vocabulary list:'}
-${vocabListStr}
+The user knows ${totalVocabCount} vocabulary words. Here is a sample for context:
+${vocabSample}
 
 CONTENT TO TRANSLATE:
 ${sourceContent}
 
 TASK:
 1. Translate the above English text into simple Japanese
-2. Use ONLY vocabulary from the user's known words list (+ max 2-3 new kanji)
+2. Use ONLY kanji from the user's known kanji list (+ max 2-3 new kanji)
 3. Use simple grammar structures appropriate for a learner
-4. When a word is not in the vocabulary list, use hiragana or find a simpler alternative
+4. When a word contains unknown kanji, write it in hiragana instead
 
 FORMATTING RULES:
 1. Add spaces between words/particles (e.g., "今日 は 天気 が いい です")
