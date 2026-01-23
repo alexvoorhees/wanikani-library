@@ -249,8 +249,14 @@ Output just the summary text, no formatting or extra commentary.
 
     // STEP 2: Translation with Vocabulary Constraints
     // Use larger model to translate English content to simple Japanese using known vocabulary
-    const fullVocabList = vocabList.join(', ');
     const totalVocabCount = vocabList.length;
+
+    // Limit vocabulary list to avoid exceeding model's context window (32k tokens)
+    // Each Japanese word averages ~3-4 tokens, so 2000 words ≈ 6-8k tokens (safe margin)
+    const MAX_VOCAB_ITEMS = 2000;
+    const truncatedVocab = vocabList.slice(0, MAX_VOCAB_ITEMS);
+    const vocabListStr = truncatedVocab.join(', ');
+    const isVocabTruncated = vocabList.length > MAX_VOCAB_ITEMS;
 
     const translationPrompt = `You are a Japanese language translator specializing in creating learner-friendly content.
 
@@ -261,8 +267,8 @@ VOCABULARY CONSTRAINT (HIGHEST PRIORITY - YOU MUST FOLLOW THIS):
 - Grammar particles (は, が, を, に, で, と, も, か, ね, よ, etc.) are always allowed
 - This constraint is CRITICAL - using too many unknown kanji ruins the learning experience
 
-The user knows ${totalVocabCount} words. Here is their COMPLETE vocabulary list:
-${fullVocabList}
+The user knows ${totalVocabCount} words.${isVocabTruncated ? ` Here is a sample of ${MAX_VOCAB_ITEMS} words from their vocabulary:` : ' Here is their vocabulary list:'}
+${vocabListStr}
 
 CONTENT TO TRANSLATE:
 ${sourceContent}
