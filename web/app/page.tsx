@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { ReaderSurface } from '@/components/ui/reader-surface';
 import { Spinner } from '@/components/ui/spinner';
-import { AlertCircle, X, Search, Link, FileText } from 'lucide-react';
+import { AlertCircle, X, Search, Link, FileText, Download, Key } from 'lucide-react';
 
 interface KanjiInfo {
   character: string;
@@ -34,7 +34,75 @@ export default function Home() {
   const [isLoadingKanji, setIsLoadingKanji] = useState(false);
   const [error, setError] = useState<string>('');
 
+  // WaniKani API sync state
+  const [wanikaniApiKey, setWanikaniApiKey] = useState('');
+  const [isLoadingWanikani, setIsLoadingWanikani] = useState(false);
+  const [wanikaniError, setWanikaniError] = useState<string>('');
+  const [wanikaniSuccess, setWanikaniSuccess] = useState<string>('');
+
   const TEXT_INPUT_LIMIT = 10000;
+
+  // Fetch known kanji from WaniKani and download as text file
+  const handleWanikaniExport = async (downloadOnly: boolean = true) => {
+    if (!wanikaniApiKey.trim()) {
+      setWanikaniError('Please enter your WaniKani API key');
+      return;
+    }
+
+    setIsLoadingWanikani(true);
+    setWanikaniError('');
+    setWanikaniSuccess('');
+
+    try {
+      const response = await fetch('/api/wanikani-kanji', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: wanikaniApiKey.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setWanikaniError(data.error || 'Failed to fetch kanji from WaniKani');
+        return;
+      }
+
+      if (!data.kanji || data.kanji.length === 0) {
+        setWanikaniError('No kanji at Guru level or above found. Keep studying!');
+        return;
+      }
+
+      // Create the kanji string (one character per line for easy use)
+      const kanjiText = data.kanji.join('');
+
+      if (downloadOnly) {
+        // Trigger file download
+        const blob = new Blob([kanjiText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'wanikani_known_kanji.txt';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        setWanikaniSuccess(`Downloaded ${data.count} kanji!`);
+      } else {
+        // Use directly in the app - convert kanji to a vocab list format
+        // Each kanji becomes a "word" in the vocab list
+        const kanjiAsVocab = data.kanji;
+        setVocabList(kanjiAsVocab);
+        localStorage.setItem('japaneseVocab', JSON.stringify(kanjiAsVocab));
+        setWanikaniSuccess(`Loaded ${data.count} kanji into vocabulary!`);
+      }
+    } catch (error) {
+      console.error('Error fetching WaniKani kanji:', error);
+      setWanikaniError('Network error. Please check your connection and try again.');
+    } finally {
+      setIsLoadingWanikani(false);
+    }
+  };
 
   // Extract unique kanji characters from vocabulary list
   // This is much more compact than sending the full word list to the API
@@ -356,6 +424,97 @@ export default function Home() {
           </p>
           <div className="rule-japanese mt-8 mx-auto max-w-xs" />
         </header>
+
+        {/* WaniKani Kanji Export Tool */}
+        <Card variant="setup" className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Key className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">WaniKani Sync</span>
+          </div>
+          <CardTitle className="mb-2">Export Your Known Kanji</CardTitle>
+          <p className="text-sm text-muted-foreground mb-4">
+            Connect to WaniKani to download a text file of all kanji you know at Guru level or above.
+          </p>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex gap-3">
+                <Input
+                  type="password"
+                  value={wanikaniApiKey}
+                  onChange={(e) => setWanikaniApiKey(e.target.value)}
+                  placeholder="Enter your WaniKani API key (v2)"
+                  className="flex-1"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  onClick={() => handleWanikaniExport(true)}
+                  disabled={isLoadingWanikani || !wanikaniApiKey.trim()}
+                  variant="default"
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isLoadingWanikani ? 'Fetching...' : 'Download Kanji File'}
+                </Button>
+                <Button
+                  onClick={() => handleWanikaniExport(false)}
+                  disabled={isLoadingWanikani || !wanikaniApiKey.trim()}
+                  variant="secondary"
+                  size="sm"
+                >
+                  {isLoadingWanikani ? 'Fetching...' : 'Use Directly in App'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Get your API key from{' '}
+                <a
+                  href="https://www.wanikani.com/settings/personal_access_tokens"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline hover:no-underline"
+                >
+                  WaniKani Settings → API Tokens
+                </a>
+                . Your key is never stored.
+              </p>
+
+              {/* Error Display */}
+              {wanikaniError && (
+                <Alert variant="destructive" className="mt-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <AlertDescription>{wanikaniError}</AlertDescription>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setWanikaniError('')}
+                      className="ml-auto h-6 w-6 text-destructive hover:text-destructive/80"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </Alert>
+              )}
+
+              {/* Success Display */}
+              {wanikaniSuccess && (
+                <Alert variant="info" className="mt-3">
+                  <div className="flex items-center gap-2">
+                    <AlertDescription>{wanikaniSuccess}</AlertDescription>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setWanikaniSuccess('')}
+                      className="ml-auto h-6 w-6"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </Alert>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Setup Section - lighter visual weight */}
         <div className="space-y-4 mb-10">
