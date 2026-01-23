@@ -105,7 +105,9 @@ TASK:
 3. Keep it simple and factual
 4. Write in English only
 
-Output just the summary text, no formatting or extra commentary.`;
+Output just the summary text, no formatting or extra commentary.
+
+/no_think`;
 
       const newsResponse = await fetch('https://api.venice.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -122,7 +124,7 @@ Output just the summary text, no formatting or extra commentary.`;
             },
           ],
           temperature: 0.5,
-          max_tokens: 800,
+          max_tokens: 1200, // Increased for longer summaries
           venice_parameters: {
             enable_web_search: 'auto', // Enable web search for current news
             enable_web_citations: false,
@@ -186,7 +188,9 @@ TASK:
 3. Write 1-3 paragraphs that capture the essential information
 4. Keep it factual and informative
 
-Output just the summary text, no formatting or extra commentary.`;
+Output just the summary text, no formatting or extra commentary.
+
+/no_think`;
 
         const extractResponse = await fetch('https://api.venice.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -203,7 +207,7 @@ Output just the summary text, no formatting or extra commentary.`;
               },
             ],
             temperature: 0.3,
-            max_tokens: 1000,
+            max_tokens: 1500, // Increased for longer content
             venice_parameters: {
               disable_thinking: true,
             },
@@ -276,7 +280,9 @@ FORMATTING RULES:
 {
   "japanese": "Your Japanese text with spaces between words",
   "english": "The original English content"
-}`;
+}
+
+/no_think`;
 
     // Call Venice.ai API for translation with retry logic
     // Using qwen3-4b for faster response (same model as source fetching)
@@ -289,7 +295,7 @@ FORMATTING RULES:
         },
       ],
       temperature: 0.3, // Lower temperature for stricter vocabulary adherence
-      max_tokens: 1500,
+      max_tokens: 3000, // Increased to handle longer translations
       venice_parameters: {
         disable_thinking: true, // Prevent Qwen3 thinking tokens in output
       },

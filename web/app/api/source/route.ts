@@ -99,7 +99,9 @@ TASK:
 3. Keep it simple and factual
 4. Write in English only
 
-Output just the summary text, no formatting or extra commentary.`;
+Output just the summary text, no formatting or extra commentary.
+
+/no_think`;
 
       const result = await callVeniceWithRetry(apiKey, {
         model: 'qwen3-4b', // Venice Small - fast model for news gathering
@@ -199,7 +201,9 @@ TASK:
 3. Write 1-3 paragraphs that capture the essential information
 4. Keep it factual and informative
 
-Output just the summary text, no formatting or extra commentary.`;
+Output just the summary text, no formatting or extra commentary.
+
+/no_think`;
 
         const result = await callVeniceWithRetry(apiKey, {
           model: 'qwen3-4b',
@@ -210,7 +214,7 @@ Output just the summary text, no formatting or extra commentary.`;
             },
           ],
           temperature: 0.3,
-          max_tokens: 1000,
+          max_tokens: 1500, // Increased for longer content
           venice_parameters: {
             disable_thinking: true,
           },
